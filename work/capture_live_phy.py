@@ -40,7 +40,7 @@ def main():
         temp.replace(COMMAND)
         print(f"loaded {revision}; restart command {command_id}", flush=True)
         saw_restart = False
-        deadline = time.monotonic() + 45
+        deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             event = stream.read_event()
             runtime = event.get("runtimeEvent") or {}
@@ -52,9 +52,13 @@ def main():
                 continue
             if tick < 1000:
                 saw_restart = True
-            if saw_restart and tick >= args.pause_tick:
+            inputs = vehicle.get("inputs") or {}
+            expected = {"steer": args.steer, "accel": args.gas, "brake": args.brake}
+            inputs_match = all(abs(float(inputs.get(key, float("nan"))) - value) < 0.02
+                               for key, value in expected.items())
+            if saw_restart and args.pause_tick <= tick <= args.pause_tick + 150 and inputs_match:
                 client.request("PUT", "runtime/game-speed", {"requestedGameSpeed": 0})
-                print(f"paused after event raceTick={tick}, inputs={vehicle.get('inputs')}", flush=True)
+                print(f"paused after event raceTick={tick}, inputs={inputs}", flush=True)
                 break
         else:
             raise TimeoutError("Replay did not reach requested race tick")

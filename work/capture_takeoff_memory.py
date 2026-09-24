@@ -69,11 +69,17 @@ def main():
         temp.write_text(command_id, encoding="utf-8")
         temp.replace(COMMAND)
         print(f"loaded {revision}; restart command {command_id}", flush=True)
-        deadline = time.monotonic() + 45
+        deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             if live["error"]:
                 raise RuntimeError(live["error"])
-            if live["started"] and live["tick"] is not None and live["tick"] >= args.start_tick:
+            inputs = live["inputs"] or {}
+            inputs_match = (abs(float(inputs.get("steer", float("nan"))) - args.expected_steer) < 0.02
+                            and abs(float(inputs.get("accel", float("nan"))) - 1.0) < 0.02
+                            and abs(float(inputs.get("brake", float("nan")))) < 0.02)
+            if (live["started"] and live["tick"] is not None
+                    and args.start_tick <= live["tick"] <= args.start_tick + 150
+                    and inputs_match):
                 break
             time.sleep(0.02)
         else:
