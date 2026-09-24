@@ -24,6 +24,7 @@ The charts use the tested build's values and state their simplifying assumptions
 ## Included
 
 - `outputs/GorillaGripLogger/`: an Openplanet logger for visible vehicle and wheel telemetry. It requires the Openplanet **VehicleState** dependency.
+- `outputs/GorillaGripRater/`: an Openplanet arcade HUD that displays the **exact normalized physics steering** on the tested game build, plus stored direction, tire icing, force multiplier, flight grades, combo score, and previous-run summary. Install that folder as an Openplanet plugin; it also requires VehicleState. Its settings control position, size, minimum icing/speed/flight, and grade cutoffs. On another build or an invalid vehicle read it visibly switches to **ESTIMATE** and marks grades provisional. See [its README](outputs/GorillaGripRater/README.md).
 - `work/tick_client.py`, `work/tick_events.py`, `work/setup_tick_automation.py`, and `work/auto_trials.py`: local TICK API access and automated replay variants.
 - `work/scan_live_vehicle.py`, `work/capture_live_phy.py`, `work/capture_takeoff_memory.py`, and `work/analyze_phy_memory.py`: read-only vehicle-memory capture and analysis. The capture tools use Windows `ReadProcessMemory`; they never write to game memory.
 - `work/create_*variants.py` and `work/analyze_jump3_trials.py`: controlled steering variants and landing-speed comparison.
@@ -45,3 +46,5 @@ These are research scripts for the specific map and replay used in the report, r
 The scripts have case-specific coordinates, action times, and internal addresses. Verify those before using them with a different map or game build. Full telemetry logs, memory snapshots, and decompilations remain in the original local workspace. They are deliberately not redistributed here, along with `Trackmania.exe`, the map, the replay, ghost, downloaded tools, and third-party source trees.
 
 The Gorilla Grip Logger starts idle on load. Manual buttons start a trial; a fresh automation command can still start an automated one. It ignores a command left in storage from a previous session. Its `FLSteerAngle`/`FRSteerAngle` columns are visual wheel angles, not the normalized internal steering field used for the ±0.1 mode decision; see the report for the direct physics-memory comparison.
+
+The Gorilla Grip Rater reads the active physics car through the current `CSmPlayer` on this build and validates the read before showing it as exact. Its landing grade is sampled about 30 ms after first visible contact because that first display frame can precede the grounded physics update. The grade describes the stored direction and tire-force multiplier, not a direct speed or acceleration measurement.
