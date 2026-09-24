@@ -2,6 +2,22 @@
 
 Investigated 24 September 2026 on the user's `ANGULAR _ MOMENTUM.Map.Gbx` and `AngularMomentumTAS.Replay.Gbx`. The local `Trackmania.exe` analyzed here has SHA-256 `3FC7D8CDA542BEDA131C44306B123F4004D07D7E22F512B46B762AFC29F6EDDA`. This conclusion is specific to that physics build and the tested ice transitions.
 
+## The simple version
+
+Imagine the game keeps two things for your car: a note saying **“sliding left” or “sliding right,”** and a short recovery timer. When you steer far enough in a new direction while **any wheel is still touching the ground**, the game changes the note and restarts the timer. During the first part of that timer, the tire-force boost is low. That is the short period where the ice slide feels slow to gain speed.
+
+The game looks at steering that has been smoothed over several physics updates. A tiny tap may not change the note immediately. In the tested build, the smoothed steering must pass **10% left or right**. It does not matter which wheel is touching; the **last wheel to lift is your deadline** before a jump.
+
+| Situation | What happens |
+|---|---|
+| Start or reverse a slide while staying on the ice | If this changes the stored direction, the recovery timer runs **while you are driving**. You can feel the slow start, then the stronger slide. |
+| Set the new direction just before a jump | The direction changes before takeoff. The timer keeps running **during the flight**, so the stronger force can be ready when you land. |
+| Wait until landing to set the new direction | The timer starts **on landing**. You feel the brief weak period after touchdown. |
+
+Steering either way in mid-air can change where the car points, but it cannot rewrite this note while no wheel touches. You still need the intended steering for the landing. **Yes: this mechanism also operates without an air transition.** The code contains no requirement to jump. Our controlled speed comparisons specifically tested jumps, so this report does not claim that every slow-feeling grounded slide is caused only by this timer; speed, angle, and surface contact can affect the result too.
+
+If the note already says the direction you want, this particular direction change does not restart the timer.
+
 ## The deciding rule
 
 The physics code keeps a **car-level directional slide mode**. For these tests, mode `1` is left and mode `2` is right. On a physics update where at least **one of the four wheels has a ground-contact flag**, it reads **smoothed steering**, not the raw TICK input:
