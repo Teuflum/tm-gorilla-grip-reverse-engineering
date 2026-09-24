@@ -17,12 +17,16 @@ float S_MinIcing = 0.65f;
 int S_MinFlight = 100;
 [Setting category="Rating" name="Minimum speed (km/h)" min=0 max=300]
 int S_MinSpeed = 50;
-[Setting category="Rating" name="Force for GOOD" min=1 max=2]
-float S_GoodForce = 1.40f;
-[Setting category="Rating" name="Force for GREAT" min=1 max=2]
-float S_GreatForce = 1.75f;
-[Setting category="Rating" name="Force for PERFECT" min=1 max=2]
-float S_PerfectForce = 1.95f;
+[Setting category="Rating" name="Force for S" min=1 max=2]
+float S_ForceS = 1.95f;
+[Setting category="Rating" name="Force for A" min=1 max=2]
+float S_ForceA = 1.75f;
+[Setting category="Rating" name="Force for B" min=1 max=2]
+float S_ForceB = 1.50f;
+[Setting category="Rating" name="Force for C" min=1 max=2]
+float S_ForceC = 1.25f;
+[Setting category="Display" name="Grade popup duration (ms)" min=400 max=2500]
+int S_PopupMs = 1000;
 [Setting category="Rating" name="Show provisional grades when exact physics is unavailable"]
 bool S_Provisional = true;
 
@@ -44,7 +48,7 @@ int g_lastRaceTime = -1;
 int g_takeoffTime = -1;
 int g_landingTime = -1;
 int g_flightMs = 0;
-int g_landingDeadline = -1;
+int g_landingDirection = 0;
 int g_takeoffMode = 0;
 int g_mode = 0;
 int g_estMode = 0;
@@ -71,7 +75,8 @@ float g_landingForce = 1;
 float g_landingSteer = 0;
 uint64 g_vehicle = 0;
 bool g_supportedBuild = false;
-uint64 g_resultAt = 0;
+int g_resultRaceTime = -1;
+bool g_popupDrawLogged = false;
 string g_result = "";
 string g_reason = "";
 string g_source = "ESTIMATE";
@@ -185,7 +190,8 @@ void StepEstimate(int t, bool grounded) {
 void ShowVerdict(const string &in label, const string &in reason, bool success, int points) {
     g_result = label;
     g_reason = reason;
-    g_resultAt = Time::Now;
+    g_resultRaceTime = g_raceTime;
+    g_popupDrawLogged = false;
     if (success) {
         g_combo++;
         g_successes++;
@@ -202,28 +208,29 @@ void ShowVerdict(const string &in label, const string &in reason, bool success, 
 }
 
 void GradeLanding() {
-    int landingDirection = Direction(g_steer);
-    if (landingDirection == 0) return;
+    int landingDirection = g_landingDirection;
     g_pendingLanding = false;
     bool provisional = !g_takeoffExact || !g_landingExact;
     if (provisional && !S_Provisional) return;
     string marker = provisional ? " ~" : "";
     if (g_takeoffMode == 0) {
-        ShowVerdict("NO SET" + marker, "No direction stored before takeoff", false, 0);
+        ShowVerdict("E" + marker, "No direction stored before takeoff", false, 0);
     } else if (g_takeoffMode != landingDirection) {
-        ShowVerdict("WRONG WAY" + marker, "Stored " + DirectionName(g_takeoffMode) + ", landed " + DirectionName(landingDirection), false, 0);
+        ShowVerdict("E" + marker, "Stored " + DirectionName(g_takeoffMode) + ", landed " + DirectionName(landingDirection), false, 0);
     } else if (provisional) {
-        ShowVerdict("ALIGNED ~", "Steering estimate only; tire force unverified", true, 50);
-    } else if (g_landingForce >= S_PerfectForce) {
+        ShowVerdict("C ~", "Direction aligned; tire force unverified", true, 50);
+    } else if (g_landingForce >= S_ForceS) {
         int spinBonus = int(g_airSpin / TAU) * 50;
         string bonus = spinBonus > 0 ? "  |  SPIN +" + spinBonus : "";
-        ShowVerdict("PERFECT", "Force " + Text::Format("%.2f", g_landingForce) + "x just after landing" + bonus, true, 150 + spinBonus);
-    } else if (g_landingForce >= S_GreatForce) {
-        ShowVerdict("GREAT", "Fast force " + Text::Format("%.2f", g_landingForce) + "x", true, 100);
-    } else if (g_landingForce >= S_GoodForce) {
-        ShowVerdict("GOOD", "Force " + Text::Format("%.2f", g_landingForce) + "x", true, 60);
+        ShowVerdict("S", "FORCE " + Text::Format("%.2f", g_landingForce) + "x" + bonus, true, 150 + spinBonus);
+    } else if (g_landingForce >= S_ForceA) {
+        ShowVerdict("A", "FORCE " + Text::Format("%.2f", g_landingForce) + "x", true, 120);
+    } else if (g_landingForce >= S_ForceB) {
+        ShowVerdict("B", "FORCE " + Text::Format("%.2f", g_landingForce) + "x", true, 90);
+    } else if (g_landingForce >= S_ForceC) {
+        ShowVerdict("C", "FORCE " + Text::Format("%.2f", g_landingForce) + "x", true, 60);
     } else {
-        ShowVerdict("DELAYED", "Force only " + Text::Format("%.2f", g_landingForce) + "x after landing", false, 0);
+        ShowVerdict("D", "DELAYED  |  FORCE " + Text::Format("%.2f", g_landingForce) + "x", false, 0);
     }
 }
 
@@ -284,26 +291,34 @@ void Update(float dt) {
         g_air = false;
         g_landingTime = t;
         g_flightMs = t - g_takeoffTime;
-        g_landingExact = false;
+        g_landingExact = g_exact;
         g_landingForce = g_force;
         g_landingSteer = g_steer;
+        g_landingDirection = Direction(g_steer);
         g_pendingLanding = g_eligible && g_flightMs >= S_MinFlight;
-        g_landingDeadline = t + 150;
         print("Gorilla Grip Rater landing " + t + "ms, air " + g_flightMs +
             "ms, steer " + g_landingSteer + ", force " + g_landingForce +
             ", pending " + g_pendingLanding);
     }
-    if (g_pendingLanding && t - g_landingTime >= 30) {
-        g_landingExact = g_exact;
+    // Capture steering at touchdown. A few display frames allow the first
+    // post-contact physics tick to appear, but later steering cannot rewrite it.
+    if (g_pendingLanding && t - g_landingTime <= 30) {
+        g_landingExact = g_landingExact && g_exact;
+        if (g_landingDirection == 0 && Direction(g_steer) != 0) {
+            g_landingDirection = Direction(g_steer);
+            g_landingSteer = g_steer;
+        }
+    }
+    if (g_pendingLanding && t - g_landingTime >= 80) {
+        g_landingExact = g_landingExact && g_exact;
         g_landingForce = g_force;
-        g_landingSteer = g_steer;
-        if (Direction(g_steer) != 0) GradeLanding();
-        else if (t >= g_landingDeadline) {
+        if (g_landingDirection != 0) GradeLanding();
+        else {
             g_pendingLanding = false;
-            bool finalExact = g_takeoffExact && g_exact;
+            bool finalExact = g_takeoffExact && g_landingExact;
             if (finalExact || S_Provisional) {
-                ShowVerdict(finalExact ? "NO STEER" : "NO STEER ~",
-                    "Steering stayed inside the 10% gate", false, 0);
+                ShowVerdict(finalExact ? "E" : "E ~",
+                    "Steering stayed inside the 10% gate at touchdown", false, 0);
             }
         }
     }
@@ -365,7 +380,9 @@ void Render() {
     string phase = g_air ? "AIR  " + ((g_raceTime - g_takeoffTime)) + " ms" : "GROUND";
     Txt(x + 20*s, y + 151*s, phase, 15*s, C(0.89f, 0.94f, 1), L);
     Txt(x + 195*s, y + 151*s, "ICE " + Text::Format("%.0f", g_icing*100) + "%", 13*s, C(0.43f, 0.78f, 1), L);
-    Txt(x + w - 20*s, y + 151*s, g_exact ? "FORCE " + Text::Format("%.2f", g_force) + "x" : "FORCE --", 15*s, C(1, 0.85f, 0.42f), R);
+    string forceLabel = g_air ? "FORCE ON CONTACT" :
+        (g_exact ? "FORCE " + Text::Format("%.2f", g_force) + "x" : "FORCE --");
+    Txt(x + w - 20*s, y + 151*s, forceLabel, 14*s, C(1, 0.85f, 0.42f), R);
     Box(x + 17*s, y + 170*s, w - 34*s, 1*s, 0, C(0.23f, 0.35f, 0.47f));
     Txt(x + 20*s, y + 189*s, "COMBO  x" + g_combo, 14*s, C(1, 0.79f, 0.28f), L);
     Txt(x + 205*s, y + 189*s, "SCORE  " + g_score, 14*s, C(0.9f, 0.96f, 1), L);
@@ -375,13 +392,26 @@ void Render() {
         g_prevMisses + " misses   best x" + g_prevBest,
         11*s, C(0.49f, 0.58f, 0.71f), L);
 
-    if (g_result.Length > 0 && Time::Now - g_resultAt < 2600) {
-        float fade = 1.0f - Math::Clamp(float(Time::Now - g_resultAt - 1800) / 800.0f, 0.0f, 1.0f);
-        float bump = 1.0f + 0.12f * Math::Max(0.0f, 1.0f - float(Time::Now - g_resultAt) / 230.0f);
-        vec4 accent = g_result.StartsWith("PERFECT") ? C(1, 0.84f, 0.26f, fade) :
-            (g_result.StartsWith("GREAT") || g_result.StartsWith("GOOD") || g_result.StartsWith("ALIGNED") ? C(0, 1, 0.84f, fade) : C(1, 0.31f, 0.6f, fade));
+    if (g_result.Length > 0 && g_resultRaceTime >= 0 &&
+            g_raceTime >= g_resultRaceTime && g_raceTime - g_resultRaceTime < S_PopupMs) {
+        if (!g_popupDrawLogged) {
+            g_popupDrawLogged = true;
+            print("Gorilla Grip Rater first popup draw at " + g_raceTime + "ms");
+        }
+        int age = g_raceTime - g_resultRaceTime;
+        float fade = 1.0f - Math::Clamp(float(age - S_PopupMs * 0.70f) /
+            (S_PopupMs * 0.30f), 0.0f, 1.0f);
+        float bump = 1.0f + 0.12f * Math::Max(0.0f, 1.0f - float(age) / 180.0f);
+        vec4 accent = C(1, 0.31f, 0.6f, fade);
+        if (g_result.StartsWith("S")) accent = C(1, 0.84f, 0.26f, fade);
+        else if (g_result.StartsWith("A")) accent = C(0, 1, 0.84f, fade);
+        else if (g_result.StartsWith("B")) accent = C(0.35f, 0.8f, 1, fade);
+        else if (g_result.StartsWith("C")) accent = C(0.58f, 0.68f, 1, fade);
+        else if (g_result.StartsWith("D")) accent = C(1, 0.55f, 0.2f, fade);
         Box(x + 20*s, y - 65*s, w - 40*s, 58*s, 12*s, C(0.025f, 0.035f, 0.09f, 0.88f*fade));
-        Txt(x + w*0.5f, y - 43*s, g_result, 28*s*bump, accent, M);
-        Txt(x + w*0.5f, y - 17*s, g_reason, 11*s, C(0.9f, 0.95f, 1, fade), M);
+        Txt(x + 52*s, y - 40*s, g_result, 35*s*bump, accent, M);
+        Txt(x + 92*s, y - 42*s, g_reason, 13*s, C(0.9f, 0.95f, 1, fade), L);
+        Txt(x + w - 37*s, y - 18*s, Text::Format("%.2f", float(g_resultRaceTime) / 1000.0f) + "s",
+            10*s, C(0.53f, 0.69f, 0.77f, fade), R);
     }
 }
