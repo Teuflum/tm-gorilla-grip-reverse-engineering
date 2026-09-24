@@ -1,0 +1,8 @@
+[meta]
+name = "Gorilla Grip Logger"
+author = "Codex"
+category = "Developer"
+version = "0.5.0"
+
+[script]
+dependencies = [ "VehicleState" ]

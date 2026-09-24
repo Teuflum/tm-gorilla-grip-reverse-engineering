@@ -1,0 +1,27 @@
+# This working directory also holds game assets, dumps, telemetry, and tools.
+# Track only explicitly reviewed research files under work/ and outputs/.
+/work/
+/outputs/
+
+# Defense in depth if files are moved outside those directories.
+*.exe
+*.dll
+*.gbx
+*.Gbx
+*.bin
+*.zip
+*.7z
+*.csv
+*.log
+*.lock
+*.gpr
+*.rep
+*.pyc
+__pycache__/
+
+# Local credentials, machine state, and generated data.
+*token*
+*secret*
+*credential*
+*.env
+*.env.*
