@@ -1,6 +1,6 @@
 """Run TICK grip variants with no copy/paste or manual CSV saving.
 
-Requires GorillaGripLogger 0.4.0 loaded in Openplanet.  This script uses the
+Requires GorillaGripLogger 0.5.1 loaded in Openplanet.  This script uses the
 local TICK API, then asks the logger to restart the race and save telemetry.
 """
 

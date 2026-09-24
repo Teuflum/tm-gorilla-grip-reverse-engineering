@@ -2,6 +2,8 @@
 
 Investigated 24 September 2026 on the user's `ANGULAR _ MOMENTUM.Map.Gbx` and `AngularMomentumTAS.Replay.Gbx`. The local `Trackmania.exe` analyzed here has SHA-256 `3FC7D8CDA542BEDA131C44306B123F4004D07D7E22F512B46B762AFC29F6EDDA`. This conclusion is specific to that physics build and the tested transitions.
 
+For a visual explanation, open [the interactive graphs](../graphs/interactive.html) from a local copy of this repository. The [static icing graph](../graphs/static/icing-force-mix.svg) can be viewed directly on GitHub.
+
 ## The simple version
 
 Imagine the game keeps two things for your car: a note saying **“sliding left” or “sliding right,”** and a short recovery timer. Once the tires are icy enough for this physics branch to run, steering far enough in a new direction while **any wheel is still touching the ground** changes the note and restarts the timer. During the first part of that timer, the tire-force boost is low. That is the short period where the ice slide feels slow to gain speed.
@@ -29,6 +31,8 @@ The deciding value is an **internal smoothed steering number**, not the raw butt
 `-1 → -0.8 → -0.6 → -0.4 → -0.2 → 0 → +0.2 → … → +1`
 
 The **sixth affected update** reaches `+0.2`, which is the first value above the required `+0.1`; if a wheel still touches then, the car stores right mode. That is roughly **50–60 ms after the raw input change**, depending on whether the input arrives just before or just after a physics update. It takes **ten affected updates**, roughly **90–100 ms**, for this internal number to reach full right. Full right to full left is symmetric.
+
+**Can an Openplanet steering display show this number?** The normal `VehicleState::ViewingPlayerState()` exposes `InputSteer` and per-wheel `FLSteerAngle`/`FRSteerAngle`, but neither is the physics field `vehicle+0x1430` used by the ±0.1 comparison. `InputSteer` is the input; the wheel-angle fields describe the actual front-wheel angles in the visual state. In the controlled `+13/127` reversal, a physics snapshot showed smoothed steering `+0.102362` near tick 11300, while the logger's display-frame CSV for the same input variant still showed front-left/front-right angles around `+0.642`/`+0.665` near 11.30 s. These are separate runs and clocks, but the code paths and different values show why `FLSteerAngle > 0.1` is **not** the gorilla-grip condition. Our direct read-only physics-memory captures reveal the exact smoothed value; the current logger's VehicleState CSV does not. A future live Openplanet display would need a verified way to reach the physics object and read this build-specific field, then validate it against those captures before calling it exact.
 
 For the small-input test, raw `+12/127 ≈ 0.0945` can never carry the smoothed value past `+0.1`, however long it is held. Raw `+13/127 ≈ 0.1024` can cross it once the smoothed value has caught up.
 

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trackmania ice grip · interactive graphs</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="model.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Trackmania physics · tested build, 24 September 2026</p>
+      <h1>What icy tires actually change</h1>
+      <p class="lead">Move the controls in six graphs to see the different values. The first graph is the key one: <strong>icing percentage is the input; force weight is the output.</strong> Neither axis means car speed or total grip.</p>
+      <nav aria-label="Graph sections">
+        <a href="#mix">1 · Force mix</a><a href="#icing-time">2 · Icing over time</a><a href="#steering">3 · Takeoff steering</a><a href="#force-target">4 · Steering and force</a><a href="#recovery">5 · Recovery delay</a><a href="#neutral">6 · Neutral steering</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card" id="mix" aria-labelledby="mix-title">
+      <div class="section-heading"><span class="step">01</span><div><h2 id="mix-title">Icy tires → which force calculation gets used?</h2><p>Imagine blending two tire-force ingredients. The line shows how strongly this code weights the <strong>ice-specific ingredient</strong>. The ordinary ingredient gets the remaining weight in this part of the calculation.</p></div></div>
+      <div class="control-row">
+        <label for="icing-range">Average icing across four tires: <output id="icing-value" for="icing-range">80%</output></label>
+        <input id="icing-range" type="range" min="0" max="100" value="80" step="1">
+        <div class="presets" aria-label="Icing examples"><button type="button" data-icing="0">0%</button><button type="button" data-icing="5">5%</button><button type="button" data-icing="20">20%</button><button type="button" data-icing="80">80%</button><button type="button" data-icing="100">100%</button></div>
+      </div>
+      <div class="chart-wrap"><svg id="mix-chart" role="img" aria-label="Ice-specific force weight on ice-family and other materials versus average tire icing"></svg></div>
+      <div class="two-col">
+        <div class="metric ice"><div class="metric-top"><span class="swatch"></span><strong>Ice / Snow / RoadIce</strong><output id="ice-weight">96.25%</output></div><div class="stack"><span id="ice-stack"></span></div><small>Ice-specific weight · ordinary contribution gets <span id="ice-ordinary">3.75%</span>.</small></div>
+        <div class="metric other"><div class="metric-top"><span class="swatch"></span><strong>Plastic / Asphalt / other</strong><output id="other-weight">30%</output></div><div class="stack"><span id="other-stack"></span></div><small>Ice-specific weight · ordinary contribution gets <span id="other-ordinary">70%</span>.</small></div>
+      </div>
+      <p class="takeaway" id="mix-summary" aria-live="polite"></p>
+      <p class="fine">The material selector uses the ice-family curve if any wheel-material entry is Ice (3), Snow (21), or RoadIce (74); otherwise it uses the other-material curve. This is a <em>weight inside one tire-force calculation</em>, not the percentage of total grip, icing gained, or speed gained. The graph uses the model's piecewise-linear control points. It does not show a universal minimum icing percentage for a sustainable slide; that also depends on speed, angle, and other forces.</p>
+    </section>
+
+    <section class="card" id="icing-time" aria-labelledby="icing-time-title">
+      <div class="section-heading"><span class="step">02</span><div><h2 id="icing-time-title">How icing itself rises or fades</h2><p>These lines show a <strong>single tire's icing percentage</strong> over time if it stays in one condition. This is a different quantity from graph 1's force weight.</p></div></div>
+      <div class="controls-grid">
+        <label>Starting icing <output id="initial-value" for="initial-range">100%</output><input id="initial-range" aria-label="Starting icing" type="range" min="0" max="100" value="100" step="1"></label>
+        <label>Wetness at transition <output id="wetness-value" for="wetness-range">0%</output><input id="wetness-range" aria-label="Wetness at transition" type="range" min="0" max="100" value="0" step="1"></label>
+        <label>Read the graph at <output id="time-value" for="time-range">1,650 ms</output><input id="time-range" aria-label="Time to read the graph at" type="range" min="0" max="6000" value="1650" step="50"></label>
+      </div>
+      <div class="chart-wrap"><svg id="icing-time-chart" role="img" aria-label="Icing percentage over time on ice, on plastic, and in air"></svg></div>
+      <p class="takeaway" id="icing-time-summary" aria-live="polite"></p>
+      <p class="fine">Idealized fixed conditions at driving speed above the tested model's threshold: Ice/RoadIce builds from 0 to 100% in 1,650 ms; grounded non-ice such as plastic loses 100 percentage points in 3,300 ms; air loses them in 6,000 ms. During decay the minimum is the smaller of starting icing and wetness at the transition. This graph holds wetness fixed; in play, wetness and contact can change.</p>
+    </section>
+
+    <section class="card" id="steering" aria-labelledby="steering-title">
+      <div class="section-heading"><span class="step">03</span><div><h2 id="steering-title">Does right mode get stored before takeoff?</h2><p>Example: switch raw input from full left to full right. The internal steering moves gradually. Drag the deadline to the last physics update with <strong>at least one wheel touching</strong>.</p></div></div>
+      <div class="control-row"><label for="contact-range">Last update with wheel contact: <output id="contact-value" for="contact-range">6</output></label><input id="contact-range" type="range" min="0" max="10" value="6" step="1"></div>
+      <div class="chart-wrap"><svg id="steering-chart" role="img" aria-label="Internal steering after each affected physics update and the last wheel-contact update"></svg></div>
+      <p class="takeaway" id="steering-summary" aria-live="polite"></p>
+      <p class="fine">The right-mode test is <strong>strictly greater than +10%</strong>, on a physics update with any wheel in contact. This is a normalized internal steering value, <em>not</em> VehicleState's <code>FLSteerAngle</code> or raw <code>InputSteer</code>. If the threshold is not crossed before takeoff, the prior left mode stays. The 0.2 change per update was measured in the tested ice conditions; six affected updates means roughly 50–60 ms after the input switch, depending on update alignment. The first wheel to lift does not end the opportunity; the last wheel does.</p>
+    </section>
+
+    <section class="card" id="force-target" aria-labelledby="force-title">
+      <div class="section-heading"><span class="step">04</span><div><h2 id="force-title">A direction threshold is not a full-force threshold</h2><p>The ±10% steering line decides which direction is stored. The <strong>recovered tire-force multiplier</strong> also depends on how far internal steering is turned.</p></div></div>
+      <div class="control-row"><label for="steer-size-range">Internal steering magnitude: <output id="steer-size-value" for="steer-size-range">20%</output></label><input id="steer-size-range" type="range" min="0" max="100" value="20" step="1"></div>
+      <div class="chart-wrap"><svg id="force-chart" role="img" aria-label="Recovered tire-force multiplier versus internal steering magnitude in the tested high-speed ice case"></svg></div>
+      <p class="takeaway" id="force-summary" aria-live="polite"></p>
+      <p class="fine">In the measured high-speed ice samples the target is about <code>1 + |internal steering|^1.5</code>: 0% → 1.0, 20% → 1.089, 60% → 1.465, 100% → 2.0. The model also depends on speed. On the clean tarmac start of ANGULAR ↻ MOMENTUM, this icy multiplier stayed at its baseline 1.0. This multiplier acts on a tire-force term, not on vehicle speed. Steering near zero can temporarily reduce it even while the stored direction survives the 300 ms neutral timeout.</p>
+    </section>
+
+    <section class="card" id="recovery" aria-labelledby="recovery-title">
+      <div class="section-heading"><span class="step">05</span><div><h2 id="recovery-title">Why setting the direction before a jump feels instant</h2><p>Changing stored direction resets the tire-force multiplier to 1.0. The measured delayed landing stayed low for about 400 ms and reached 2.0 at about 600 ms. Airtime can use up this wait.</p></div></div>
+      <div class="control-row"><label for="lead-range">Time from storing direction to landing: <output id="lead-value" for="lead-range">1,300 ms</output></label><input id="lead-range" type="range" min="0" max="1300" value="1300" step="10"></div>
+      <div class="chart-wrap"><svg id="recovery-chart" role="img" aria-label="Illustrative tire-force multiplier after landing when mode changes at landing versus earlier before landing"></svg></div>
+      <p class="takeaway" id="recovery-summary" aria-live="polite"></p>
+      <p class="fine">The blue curve is an illustrative interpolation through approximate landmarks from one measured full-steering landing (near 1.0 through 370 ms, about 1.05 at 390 ms, 2.0 near 590 ms). It is <strong>not the exact game recovery formula</strong>. The green line shifts that same sketch earlier by the selected lead time. Full steering and similar high-speed conditions are assumed. Neutral steering for about 300 ms is a separate stored-direction timeout, not this force-recovery time.</p>
+    </section>
+
+    <section class="card" id="neutral" aria-labelledby="neutral-title">
+      <div class="section-heading"><span class="step">06</span><div><h2 id="neutral-title">What the 300 ms neutral timer remembers</h2><p>Start with left mode stored, then let <strong>internal</strong> steering stay between −10% and +10% while a wheel touches. Drag how long it stays there before returning left.</p></div></div>
+      <div class="control-row"><label for="neutral-range">Time at neutral internal steering: <output id="neutral-value" for="neutral-range">100 ms</output></label><input id="neutral-range" type="range" min="0" max="500" value="100" step="10"></div>
+      <div class="chart-wrap"><svg id="neutral-chart" role="img" aria-label="Stored left mode remains until 300 milliseconds of neutral internal steering, then clears"></svg></div>
+      <p class="takeaway" id="neutral-summary" aria-live="polite"></p>
+      <p class="fine">The graph shows <em>stored direction</em>, not the current force multiplier. Near-zero steering can lower the multiplier even before the stored mode clears. The 300 ms line is the timer threshold; the mode clears on the next eligible physics update at or after it. This simplified graph assumes continuous wheel contact and an active icy tire-force branch. In the air the neutral check does not run; at landing the timer may be checked if steering is still neutral.</p>
+    </section>
+
+    <aside class="source"><strong>How to read these graphs:</strong> graph 1 is a force weight; graph 2 is the tire's icing state; graphs 3–6 are steering, stored direction, and a separate force multiplier. They are distinct values and should not be added together. <a href="../outputs/gorilla_grip_mechanism.md">Read the evidence and code trail in the full report →</a></aside>
+  </main>
+  <footer class="wrap">Original interactive graphs for the tested Trackmania build. No network connection or dependencies are required.</footer>
+</body>
+</html>

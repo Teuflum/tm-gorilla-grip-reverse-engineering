@@ -21,6 +21,12 @@ string ReadAutoCommand() {
     return command;
 }
 
+void Main() {
+    // Ignore the command left in storage by a previous session. Only a new
+    // command written after this plugin loads may start automated recording.
+    g_last_auto_command = ReadAutoCommand();
+}
+
 void WriteAutoStatus(const string &in status) {
     string path = IO::FromStorageFolder("automation_status.txt");
     IO::File file(path, IO::FileMode::Write);

@@ -2,6 +2,25 @@
 
 This repository contains the [mechanism report](outputs/gorilla_grip_mechanism.md) and scripts used to investigate instant ice-slide grip in the current Trackmania physics build. The report identifies a car-level slide-direction state, a strict ±0.1 threshold on smoothed steering, a 300 ms neutral timeout, and an any-wheel contact condition. It also compares clean tarmac with icy tires on plastic and explains why a short return to neutral preserves the direction but temporarily reduces the force multiplier.
 
+## Interactive graphs
+
+Download or clone the repository, then open [graphs/interactive.html](graphs/interactive.html) in a browser. It works offline with no install or external scripts. Six interactive graphs let you change the icing level, wetness, takeoff contact deadline, steering amount, time before landing, and neutral-steering duration. The page keeps **tire icing**, **the weight of the icy tire-force contribution**, **stored direction**, and **the tire-force multiplier** visibly separate.
+
+The SVG previews open directly on GitHub:
+
+- [Icing versus force weight](graphs/static/icing-force-mix.svg)
+- [Icing buildup and decay](graphs/static/icing-over-time.svg)
+- [Steering threshold before takeoff](graphs/static/steering-before-takeoff.svg)
+- [Force target versus steering](graphs/static/steering-force-target.svg)
+- [Force recovery after a direction change](graphs/static/force-recovery.svg)
+- [300 ms neutral-steering timeout](graphs/static/neutral-steering-timeout.svg)
+
+![Icing versus force weight on ice-family and other materials](graphs/static/icing-force-mix.svg)
+
+At the dotted 80% icing example, the blue curve gives the icy-force term a **96.25% weight** on Ice/Snow/RoadIce, while the orange curve gives it a **30% weight** on Plastic/Asphalt. The remaining weight goes to an ordinary force contribution in this calculation. Neither number is total grip or speed.
+
+The charts use the tested build's values and state their simplifying assumptions. Run `node --test graphs/model.test.js` to check the numerical examples and `node graphs/export-static.js` to regenerate the SVG previews from the interactive renderer.
+
 ## Included
 
 - `outputs/GorillaGripLogger/`: an Openplanet logger for visible vehicle and wheel telemetry. It requires the Openplanet **VehicleState** dependency.
@@ -24,3 +43,5 @@ These are research scripts for the specific map and replay used in the report, r
 5. To list material and icing transitions from a map and a ghost, run `dotnet run --project work/FlixInspect/FlixInspect.csproj -- <map.Map.Gbx> <run.Ghost.gbx>` using your own files.
 
 The scripts have case-specific coordinates, action times, and internal addresses. Verify those before using them with a different map or game build. Full telemetry logs, memory snapshots, and decompilations remain in the original local workspace. They are deliberately not redistributed here, along with `Trackmania.exe`, the map, the replay, ghost, downloaded tools, and third-party source trees.
+
+The Gorilla Grip Logger starts idle on load. Manual buttons start a trial; a fresh automation command can still start an automated one. It ignores a command left in storage from a previous session. Its `FLSteerAngle`/`FRSteerAngle` columns are visual wheel angles, not the normalized internal steering field used for the ±0.1 mode decision; see the report for the direct physics-memory comparison.
