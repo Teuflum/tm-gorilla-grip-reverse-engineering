@@ -18,6 +18,18 @@ Steering either way in mid-air can change where the car points, but it cannot re
 
 If the note already says the direction you want, this particular direction change does not restart the timer.
 
+### How many ticks for a full steering reversal?
+
+The deciding value is an **internal smoothed steering number**, not the raw button/TICK input or the visible front-wheel angle. In these ice-contact runs, it changed by about `0.2` per **10 ms physics update** when we switched from full left (`-1`) toward full right (`+1`):
+
+`-1 → -0.8 → -0.6 → -0.4 → -0.2 → 0 → +0.2 → … → +1`
+
+The **sixth affected update** reaches `+0.2`, which is the first value above the required `+0.1`; if a wheel still touches then, the car stores right mode. That is roughly **50–60 ms after the raw input change**, depending on whether the input arrives just before or just after a physics update. It takes **ten affected updates**, roughly **90–100 ms**, for this internal number to reach full right. Full right to full left is symmetric.
+
+For the small-input test, raw `+12/127 ≈ 0.0945` can never carry the smoothed value past `+0.1`, however long it is held. Raw `+13/127 ≈ 0.1024` can cross it once the smoothed value has caught up.
+
+This explains the apparent few-tick wait before the game *recognizes* the new slide direction. A **second, longer delay** starts only when that stored direction changes: the tire-force multiplier stays low for about **400 ms** before recovering. On the measured delayed landing near 12.58 s, it reached its recovered value by about 13.17 s, roughly **0.6 s after touchdown**. A jump can hide much of this second delay by letting the timer run in the air. The `0.2` steering step is measured for these ice conditions and can differ with the physics conditions; the six- and ten-update estimates are not universal constants.
+
 ## The deciding rule
 
 The physics code keeps a **car-level directional slide mode**. For these tests, mode `1` is left and mode `2` is right. On a physics update where at least **one of the four wheels has a ground-contact flag**, it reads **smoothed steering**, not the raw TICK input:
