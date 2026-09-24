@@ -18,6 +18,8 @@ Steering either way in mid-air can change where the car points, but it cannot re
 
 If the note already says the direction you want, this particular direction change does not restart the timer.
 
+For an instant rightward response after a jump, the note must already say **right** before takeoff, and it must still say right when the tires meet the ice. “Right” here means the **steering direction used for the landing**, not the direction the car is pointing or moving. Raw right input at the last possible moment may still leave the internal smoothed value pointing left, which can change the note again at touchdown. The note also needs to have been set early enough for its recovery timer to finish; crossing 10% immediately before a very short jump does not guarantee full force on landing.
+
 ### How many ticks for a full steering reversal?
 
 The deciding value is an **internal smoothed steering number**, not the raw button/TICK input or the visible front-wheel angle. In these ice-contact runs, it changed by about `0.2` per **10 ms physics update** when we switched from full left (`-1`) toward full right (`+1`):
@@ -44,11 +46,22 @@ The code also checks two special vehicle-status flags. They were clear in all of
 
 On the supplied 11.26–12.58 s transition, that last wheel is **rear-right** (internal wheel index 2). On the independent 9.41–10.38 s transition, it is **front-left** (internal index 0). The same threshold rule predicts both. An after-update snapshot can already show all four flags clear even though the mode changed in that update; use the code's contact check and the immediately preceding contact snapshot to interpret that boundary, rather than the displayed race timestamp alone.
 
-While all wheels are airborne, smoothed steering still follows air inputs, but this contact-gated mode does not update. Thus steering either way during the spin can leave the previously committed mode intact. To get the intended rightward response on landing, the car must arrive with right mode already stored and rightward landing input. If it arrives carrying left mode, the first eligible landing update changes it to right and starts the recovery delay.
+While all wheels are airborne, smoothed steering still follows air inputs, but this contact-gated mode does not update. Thus steering either way during the spin can leave the previously committed mode intact. To get the intended rightward response on landing, the car must arrive with right mode already stored and smoothed steering that will not switch it back to left when contact resumes. If it arrives carrying left mode, the first eligible landing update with sufficiently rightward smoothed steering changes it to right and starts the recovery delay.
 
 ## Why the grip feels delayed
 
 Every directional-mode change writes a timestamp and resets the tire-force multiplier at vehicle offset `0x14dc` to `1.0`. That multiplier directly appears in the tire-force calculation inside the four-wheel loop. In these ice runs its recovered value is `2.0`. The vehicle model's delay parameter at `model+0x1194` is `400`; the code holds the multiplier at `1.0` until that interval expires, then raises it toward the target. It also limits the recovery window to twice that delay. In the measured delayed landing, it remained at `1.0` through roughly race time 12.95 s, rose from about 1.05 to 2.0 between 12.97 and 13.17 s, and was 2.0 thereafter. The fast variant had already recovered to `2.0` before landing.
+
+| Time relative to a mode change | Tire-force multiplier in these runs | Meaning for the slide |
+|---|---:|---|
+| At the change | Reset to `1.0` | The timer starts; the stronger tire-force contribution is unavailable. |
+| First ~400 ms | Remains near `1.0` | The car still has tire forces and can gain or lose speed, but this contribution is lower. |
+| After ~400 ms | Starts rising | The stronger slide response begins returning. |
+| About ~600 ms in the measured landing | Reached `2.0` | This contribution had fully recovered for that run. |
+
+These numbers describe a **multiplier on a tire-force calculation**, not a multiplier on the car's speed or a promise of forward acceleration. In the target pair, both variants touched down near 241.5 km/h; at x≈782 the delayed run was 227.323 km/h and the pre-set run was 230.944–230.958 km/h. The recovered multiplier therefore corresponded to **less speed lost after landing** on this trajectory. On another trajectory, the same force difference can feel like stronger slide acceleration.
+
+For a grounded slide begun by switching raw input from full left to full right in these ice conditions, the mode switch is estimated ~50–60 ms after input. Adding the timer gives an estimated **~450–460 ms from input until this force contribution starts recovering**, and **~650–660 ms until full recovery** if it follows the measured landing ramp. Those input-to-force figures are a projection from the code and the jump measurements; we have not measured a separate ground-only reversal to confirm its exact speed response.
 
 Changing mode before takeoff resets the multiplier early enough for the long airborne interval to consume the delay. Air steering cannot reset that mode while no wheel touches. Changing mode at touchdown resets the multiplier there instead, producing the observed brief loss of slide acceleration.
 
@@ -90,4 +103,4 @@ Relevant local decompilations are `work/ghidra_decompiled/14084f98a.c` (function
 
 ## Practical input rule
 
-For a rightward ice slide after a jump, begin steering right early enough that **smoothed steering becomes strictly greater than `+0.1` while any wheel still contacts the surface**; for a leftward slide use strictly less than `-0.1`. The needed lead time depends on the starting smoothed steer, its slew rate, and when the final wheel lifts. Once the correct mode is committed, airborne steering can vary, provided the intended steering is restored for landing. The shorter the airtime after the mode switch, the more of the multiplier recovery may still remain at touchdown.
+For a rightward ice slide after a jump, begin steering right early enough that **smoothed steering becomes strictly greater than `+0.1` while any wheel still contacts the surface**; for a leftward slide use strictly less than `-0.1`. The needed lead time depends on the starting smoothed steer, its slew rate, and when the final wheel lifts. Once the correct mode is committed, airborne steering can vary, provided the smoothed steering does not trigger the opposite mode when contact resumes. The shorter the airtime after the mode switch, the more of the multiplier recovery may still remain at touchdown.
