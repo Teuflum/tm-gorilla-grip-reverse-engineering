@@ -35,7 +35,7 @@
 ## Task 2: Define and test the rating model
 
 - [x] Exercise success, missed direction, unready multiplier, short hop, combo gain/break, and run reset in the in-game state machine using the established TICK replays and Openplanet verdict logs.
-- [x] Implement the transition state machine. It waits 30 ms after visible contact to avoid sampling the pre-update force value.
+- [x] Implement the transition state machine. It waits 80 ms after visible contact to avoid sampling the pre-update force value on the first ice landing.
 - [x] Compare +13 and +12 controlled variants against speed and direct physics measurements.
 
 ## Task 3: Build the Openplanet plugin
