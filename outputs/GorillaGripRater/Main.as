@@ -341,6 +341,17 @@ void Txt(float x, float y, const string &in value, float size, const vec4 &in co
     nvg::Text(x, y, value);
 }
 
+string PopupCaption() {
+    if (g_result.StartsWith("S")) return "GORILLA GRIP";
+    if (g_result.StartsWith("A")) return "CLEAN LANDING";
+    if (g_result.StartsWith("B")) return "SOLID GRIP";
+    if (g_result.StartsWith("C")) return g_result == "C ~" ? "GRIP ESTIMATED" : "PARTIAL GRIP";
+    if (g_result.StartsWith("D")) return "GRIP DELAYED";
+    if (g_reason.StartsWith("Stored ")) return "WRONG DIRECTION";
+    if (g_reason.StartsWith("No direction")) return "NO TAKEOFF SETUP";
+    return "NO LANDING STEER";
+}
+
 void Render() {
     if (!S_Show || !g_hasCar || g_raceTime < 0) return;
     if (S_HideWithUI && !UI::IsGameUIVisible()) return;
@@ -379,7 +390,7 @@ void Render() {
 
     string phase = g_air ? "AIR  " + ((g_raceTime - g_takeoffTime)) + " ms" : "GROUND";
     Txt(x + 20*s, y + 151*s, phase, 15*s, C(0.89f, 0.94f, 1), L);
-    Txt(x + 195*s, y + 151*s, "ICE " + Text::Format("%.0f", g_icing*100) + "%", 13*s, C(0.43f, 0.78f, 1), L);
+    Txt(x + w*0.5f, y + 151*s, "ICE " + Text::Format("%.0f", g_icing*100) + "%", 13*s, C(0.43f, 0.78f, 1), M);
     string forceLabel = g_air ? "FORCE ON CONTACT" :
         (g_exact ? "FORCE " + Text::Format("%.2f", g_force) + "x" : "FORCE --");
     Txt(x + w - 20*s, y + 151*s, forceLabel, 14*s, C(1, 0.85f, 0.42f), R);
@@ -401,17 +412,46 @@ void Render() {
         int age = g_raceTime - g_resultRaceTime;
         float fade = 1.0f - Math::Clamp(float(age - S_PopupMs * 0.70f) /
             (S_PopupMs * 0.30f), 0.0f, 1.0f);
-        float bump = 1.0f + 0.12f * Math::Max(0.0f, 1.0f - float(age) / 180.0f);
+        float progress = Math::Clamp(float(age) / 190.0f, 0.0f, 1.0f);
+        float remaining = 1.0f - progress;
+        float reveal = 1.0f - remaining * remaining * remaining;
+        float impact = 1.0f - Math::Clamp(float(age) / 280.0f, 0.0f, 1.0f);
+        float captionAlpha = fade * Math::Clamp(float(age - 75) / 150.0f, 0.0f, 1.0f);
         vec4 accent = C(1, 0.31f, 0.6f, fade);
         if (g_result.StartsWith("S")) accent = C(1, 0.84f, 0.26f, fade);
         else if (g_result.StartsWith("A")) accent = C(0, 1, 0.84f, fade);
         else if (g_result.StartsWith("B")) accent = C(0.35f, 0.8f, 1, fade);
         else if (g_result.StartsWith("C")) accent = C(0.58f, 0.68f, 1, fade);
         else if (g_result.StartsWith("D")) accent = C(1, 0.55f, 0.2f, fade);
-        Box(x + 20*s, y - 65*s, w - 40*s, 58*s, 12*s, C(0.025f, 0.035f, 0.09f, 0.88f*fade));
-        Txt(x + 52*s, y - 40*s, g_result, 35*s*bump, accent, M);
-        Txt(x + 92*s, y - 42*s, g_reason, 13*s, C(0.9f, 0.95f, 1, fade), L);
-        Txt(x + w - 37*s, y - 18*s, Text::Format("%.2f", float(g_resultRaceTime) / 1000.0f) + "s",
-            10*s, C(0.53f, 0.69f, 0.77f, fade), R);
+        float cx = x + w*0.5f;
+        float panelW = (170.0f + 290.0f*reveal)*s;
+        float panelY = y - 122*s;
+        Box(cx - panelW*0.5f, panelY + 5*s, panelW, 105*s, 16*s, C(0, 0, 0, 0.34f*fade));
+        Box(cx - panelW*0.5f, panelY, panelW, 105*s, 16*s,
+            C(0.025f, 0.035f, 0.09f, 0.93f*fade));
+        Box(cx - panelW*0.5f, panelY + 2*s, panelW, 3*s, 1*s,
+            C(accent.x, accent.y, accent.z, 0.75f*fade));
+        Box(cx - panelW*0.5f, panelY + 100*s, panelW, 2*s, 1*s,
+            C(accent.x, accent.y, accent.z, 0.28f*fade));
+
+        // A short center flash and mirrored shards give each landing an impact.
+        Box(cx - 74*s, panelY + 21*s, 148*s, 58*s, 24*s,
+            C(accent.x, accent.y, accent.z, 0.13f*impact*fade));
+        Box(cx - 48*s, panelY + 27*s, 96*s, 46*s, 20*s,
+            C(accent.x, accent.y, accent.z, 0.16f*impact*fade));
+        for (int i = 0; i < 5; i++) {
+            float distance = (54.0f + float(i)*27.0f + (1.0f-impact)*43.0f)*s;
+            float shardY = panelY + (26.0f + float(i%3)*20.0f)*s;
+            float shardW = (12.0f - float(i))*s;
+            vec4 shard = C(accent.x, accent.y, accent.z, impact*fade*(0.8f - float(i)*0.08f));
+            Box(cx - distance - shardW, shardY, shardW, 3*s, 1*s, shard);
+            Box(cx + distance, shardY, shardW, 3*s, 1*s, shard);
+        }
+
+        float gradeSize = (54.0f + 28.0f*remaining*remaining)*s;
+        float gradeY = panelY + (48.0f + 13.0f*remaining)*s;
+        Txt(cx, gradeY, g_result, gradeSize, accent, M);
+        Txt(cx, panelY + 83*s, PopupCaption(), 13*s,
+            C(0.88f, 0.96f, 1.0f, captionAlpha), M);
     }
 }
