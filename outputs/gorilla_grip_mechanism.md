@@ -1,6 +1,6 @@
 # Trackmania ice “gorilla grip”: measured mechanism
 
-Investigated 24 September 2026 on the user's `ANGULAR _ MOMENTUM.Map.Gbx` and `AngularMomentumTAS.Replay.Gbx`, with a later check of `IOTW - Flix.Map.Gbx` and its ghost. The local `Trackmania.exe` analyzed here has SHA-256 `3FC7D8CDA542BEDA131C44306B123F4004D07D7E22F512B46B762AFC29F6EDDA`. This conclusion is specific to that physics build and the tested transitions.
+Investigated 24 September 2026 on the user's `ANGULAR _ MOMENTUM.Map.Gbx` and `AngularMomentumTAS.Replay.Gbx`. The local `Trackmania.exe` analyzed here has SHA-256 `3FC7D8CDA542BEDA131C44306B123F4004D07D7E22F512B46B762AFC29F6EDDA`. This conclusion is specific to that physics build and the tested transitions.
 
 ## The simple version
 
@@ -60,19 +60,27 @@ The **10% threshold controls the stored direction, not the amount of current for
 
 ### Ice surface, icy tires, plastic, and tarmac
 
-The direction-update code checks whether **any wheel contacts a surface**, not whether that wheel contacts ice. Another guard makes the tire-force branch inactive when its car-level icing-related factor is effectively zero. The caller derives that factor from `vehicle+0x1c44`, the model's `0.8` ice coefficient, and one of two model curves. A wheel reporting material `74` (RoadIce), `21` (Snow), or `3` selects one curve; other materials, including `77` (Plastic), select a different curve:
+The direction-update code checks whether **any wheel contacts a surface**, not whether that wheel contacts ice. The caller first computes an icing input from a car-level coefficient at `vehicle+0x1c44`: `(1 − coefficient) / (1 − 0.8)`, clamped to `0–1`. We observed the coefficient at `1.0` with clean tires on tarmac and around `0.8` with fully icy tires; its first changes on ice track the visible per-wheel icing readings. This identifies the input as an icing-related state, although the exact code that combines the four wheel values into that field has not yet been located.
 
-| Normalized car-level icing value | Curve for materials 74/21/3 | Other-material curve |
+**What does the curve mean?** Think of this part of the code as having an ordinary tire-force calculation and an ice-specific tire-force calculation. It scales down one ordinary contribution by `1 − curve output` and passes the curve output into the icy contribution. The curve changes **how much of these tire-force contributions is used at the current icing level**. It does **not** say how quickly tires gain or lose ice, how much speed the car gains, or the total grip of the surface.
+
+The wheel-material entries select which curve to use: if **any** entry is material `3` (**Ice**), `21` (**Snow**), or `74` (**RoadIce**), the code uses the ice-family curve. Otherwise it uses the other-material curve, which includes `77` (**Plastic**) and `16` (**Asphalt**). These are values in this game build; a mixed-material transition can select the ice-family curve. For the *same icing input*, the outputs are:
+
+| Icing input from car-level field | Ice / Snow / RoadIce: ice-force share | Plastic / Asphalt / other: ice-force share |
 |---:|---:|---:|
-| `0` | `0` | `0` |
-| `0.8` | About `0.9625` | `0.3` |
-| `1.0` | `1.0` | `1.0` |
+| `0%` | `0%` | `0%` |
+| `5%` | `60%` | `1.875%` |
+| `20%` | `85%` | `7.5%` |
+| `80%` | `96.25%` | `30%` |
+| `100%` | `100%` | `100%` |
 
-Both curves at `0.8` exceed the branch's `0.00001` guard. **Thus the code supports setting or retaining the direction while on plastic if the tires remain icy enough**, then carrying that mode into the jump and landing on ice. The same alternate curve can apply on other non-ice materials if icy tires persist, but those particular surfaces were not separately tested. Surface material still matters because it chooses the curve and affects other tire forces; this is not a rule based on tire icing alone. These curve outputs are **not** the `1.0–2.0` multiplier and do not by themselves give the total tire-force ratio between surfaces.
+For example, **80% icing does not mean 96% total grip on ice**. It means the ice-specific contribution in this calculation has a weight of about `0.9625` on an ice-family surface. On plastic at the same icing input its weight is `0.3`. The ordinary contribution gets the complementary weight in this part of the calculation; other surface-specific forces still exist.
+
+The icy contribution is enabled when its curve output is at least about `0.00001`. Both curves become nonzero immediately above zero icing. Mathematically, this guard is reached at roughly `0.000083%` of the **normalized car-level icing input** with the ice-family curve, or `0.0027%` with the other-material curve. Those tiny values are numerical switches for this force branch, **not practical slide thresholds or measured per-wheel icing percentages**. This code does **not** contain a meaningful fixed icy-tire percentage at which an ice slide abruptly becomes possible. Tire force changes progressively as icing rises. A visibly sustainable slide also depends on speed, steering, slip angle, and the other forces; we have not measured a universal minimum percentage for that outcome.
+
+**What the code proves about plastic:** if icing remains high, the icy-force path and the stored-direction logic can operate while a wheel touches plastic. At full icing, the two curves both output `1.0`. This supports a plastic takeoff with icy tires being able to pre-set gorilla grip. It does **not** prove that ice has no other surface effect, or that wet wheels keep icing at 100% on plastic. We have not yet traced the separate icing gain/decay update or tested a controlled wet-plastic segment, so that proposed retention mechanism remains open.
 
 We also measured the clean-tire tarmac start of ANGULAR ↻ MOMENTUM. During the full-right, wheel-contact interval around 2.37–2.88 s, the car-level ice coefficient field was `1.0` (no accumulated ice), the stored directional mode stayed `0`, and this multiplier stayed at its **baseline `1.0`**. At first ice contact near 2.93 s, the field began falling below `1.0` and right mode appeared. The `2.0` observed later on iced full steering is therefore **not a universal tarmac default**. These values are for this internal multiplier, not a ratio of the total grip of asphalt, plastic, and ice.
-
-The supplied IOTW - Flix ghost confirms plastic sections with tires still heavily iced: the four visible wheel-icing readings were about `0.79–1.00` on plastic. Its recorded airtime near **35.95 s** is not a clean plastic-takeoff proof: the 50 ms ghost samples show a plastic-to-ice transition around 35.85–35.90 s and all wheels reporting RoadIce just before the airborne sample. A controlled last-contact-on-plastic run would be needed to verify that particular map claim in game. The code-path result above does not rely on that ghost's takeoff classification.
 
 ## Why the grip feels delayed
 
@@ -122,7 +130,7 @@ The landing-memory pair gives the causal link. The `+12` run had mode `2` but mu
 | `FUN_14084f720` at `0x14084f900`–`0x14084f936` | Compares smoothed steer with float constants `-0.10000000149` and `+0.10000000149`; writes mode `1` or `2` at `vehicle+0x14e5`. |
 | Neutral branch in `FUN_14084f720` | Starts/checks the neutral timestamp at `vehicle+0x14e0` against `model+0x1198 = 300`, and clears mode after the neutral timeout. |
 | `FUN_14084f720` at `0x14084f967`–`0x14084f988` | On mode change, writes timestamp `vehicle+0x14d8` and resets `vehicle+0x14dc` to `1.0`. |
-| `FUN_140851f00` calling `FUN_140850e10` | Uses material IDs `74`, `21`, and `3` to choose the model curve at `model+0xcf0`; other materials use `model+0xd40`. Their output enters `FUN_14084f720` as its nonzero activation/force factor. |
+| `FUN_140851f00` calling `FUN_140850e10` | If any wheel-material entry is `74` (RoadIce), `21` (Snow), or `3` (Ice), it chooses the model curve at `model+0xcf0`; otherwise it uses `model+0xd40`. The caller scales one force contribution by `1 − curve output` and passes the output to `FUN_14084f720` for the icy-force contribution. Material names were checked against GBX.NET's material enum; the numeric choices come from the game code. |
 | `FUN_14084f720`, later tire-force loop | Recovers `vehicle+0x14dc` using model delay `400`; its target depends on smoothed-steering magnitude through a power of `1.5` and a speed-related model curve, then it multiplies a tire-force vector. |
 
 The decompiler sometimes omits call arguments. The x64 disassembly shows `lea rcx, [rdi+0x1280]` before the contact call; `FUN_140843150` accesses `param_1+0x534`, giving `vehicle+0x17b4`. The mode code is additionally guarded by `FUN_14083dbd0`, which checks two status bits at `vehicle+0x176c` and `vehicle+0x1370`; both were zero in the paired snapshots. The other reset path tests `vehicle+0x128c & 0x20000`; that bit was also zero here.
