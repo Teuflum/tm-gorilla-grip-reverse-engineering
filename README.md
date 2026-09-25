@@ -21,10 +21,13 @@ At the dotted 80% icing example, the blue curve gives the icy-force term a **96.
 
 The charts use the tested build's values and state their simplifying assumptions. Run `node --test graphs/model.test.js` to check the numerical examples and `node graphs/export-static.js` to regenerate the SVG previews from the interactive renderer.
 
+## Related plugin
+
+[Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) is the separate Openplanet plugin project. Its specification and implementation plan cover exact steering telemetry, timing grades, movable widgets, local audio, and run history.
+
 ## Included
 
 - `outputs/GorillaGripLogger/`: an Openplanet logger for visible vehicle and wheel telemetry. It requires the Openplanet **VehicleState** dependency.
-- `outputs/GorillaGripRater/`: an Openplanet arcade HUD that displays the **exact normalized physics steering** on the tested game build, plus stored direction, tire icing, force multiplier, flight grades, combo score, and previous-run summary. Install that folder as an Openplanet plugin; it also requires VehicleState. Its settings control position, size, minimum icing/speed/flight, and grade cutoffs. On another build or an invalid vehicle read it visibly switches to **ESTIMATE** and marks grades provisional. See [its README](outputs/GorillaGripRater/README.md).
 - `work/tick_client.py`, `work/tick_events.py`, `work/setup_tick_automation.py`, and `work/auto_trials.py`: local TICK API access and automated replay variants.
 - `work/scan_live_vehicle.py`, `work/capture_live_phy.py`, `work/capture_takeoff_memory.py`, and `work/analyze_phy_memory.py`: read-only vehicle-memory capture and analysis. The capture tools use Windows `ReadProcessMemory`; they never write to game memory.
 - `work/create_*variants.py` and `work/analyze_jump3_trials.py`: controlled steering variants and landing-speed comparison.
@@ -47,4 +50,4 @@ The scripts have case-specific coordinates, action times, and internal addresses
 
 The Gorilla Grip Logger starts idle on load. Manual buttons start a trial; a fresh automation command can still start an automated one. It ignores a command left in storage from a previous session. Its `FLSteerAngle`/`FRSteerAngle` columns are visual wheel angles, not the normalized internal steering field used for the ±0.1 mode decision; see the report for the direct physics-memory comparison.
 
-The Gorilla Grip Rater reads the active physics car through the current `CSmPlayer` on this build and validates the read before showing it as exact. It captures steering direction at first visible contact, then samples force about 80 ms later because the first grounded display frames can still contain the airborne value. The centered grade popup animates for one second by default; detailed force remains in the main HUD and the race timestamp remains in the diagnostic log. While airborne, the HUD says **FORCE ON CONTACT**: the stored multiplier can read `1.00x` in the air and update to `2.00x` when the wheel-force code runs after landing. The grade describes the stored direction and tire-force multiplier, not a direct speed or acceleration measurement.
+The prototype Rater used during this research read the active physics car through the current `CSmPlayer` and validated the read before displaying it as exact. Its test harness remains in `work/test_rater_in_game.py` as a record of the controlled +13/+12 comparison. The new [Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) will own the player-facing plugin. The stored force multiplier can read `1.00x` in air and update to `2.00x` on contact; it is part of the tire-force calculation, not a direct speed or acceleration reading.
