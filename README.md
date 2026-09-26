@@ -1,6 +1,6 @@
 # Trackmania gorilla grip research
 
-This repository contains the [mechanism report](outputs/gorilla_grip_mechanism.md) and scripts used to investigate instant ice-slide grip in the current Trackmania physics build. The report identifies a car-level slide-direction state, a strict ±0.1 threshold on smoothed steering, a 300 ms neutral timeout, and an any-wheel contact condition. It also compares clean tarmac with icy tires on plastic and explains why a short return to neutral preserves the direction but temporarily reduces the force multiplier.
+This repository contains the [mechanism report](outputs/gorilla_grip_mechanism.md), a shorter [player guide](outputs/gorilla_grip_player_guide.md), and scripts used to investigate instant ice-slide grip in the current Trackmania physics build. The report identifies a car-level slide-direction state, a strict ±0.1 threshold on smoothed steering, a 300 ms neutral timeout, and an any-wheel contact condition. It also compares clean tarmac with icy tires on plastic and explains why a short return to neutral preserves the direction but temporarily reduces the force multiplier.
 
 ## Interactive graphs
 

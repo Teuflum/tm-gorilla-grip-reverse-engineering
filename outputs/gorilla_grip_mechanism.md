@@ -2,7 +2,7 @@
 
 Investigated 24 September 2026 on the user's `ANGULAR _ MOMENTUM.Map.Gbx` and `AngularMomentumTAS.Replay.Gbx`. The local `Trackmania.exe` analyzed here has SHA-256 `3FC7D8CDA542BEDA131C44306B123F4004D07D7E22F512B46B762AFC29F6EDDA`. This conclusion is specific to that physics build and the tested transitions.
 
-For a visual explanation, open [the interactive graphs](../graphs/interactive.html) from a local copy of this repository. The [static icing graph](../graphs/static/icing-force-mix.svg) can be viewed directly on GitHub.
+For a shorter explanation aimed at players, without the reverse-engineering detail, read the [player guide](gorilla_grip_player_guide.md). For a visual explanation, open [the interactive graphs](../graphs/interactive.html) from a local copy of this repository. The [static icing graph](../graphs/static/icing-force-mix.svg) can be viewed directly on GitHub.
 
 ## The simple version
 
