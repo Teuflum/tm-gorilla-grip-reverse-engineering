@@ -24,7 +24,7 @@ The multiplier scales part of the tire force the game calculates for your wheels
 |---|---|
 | 0–400 ms | Stays at 1.0×. |
 | 400–800 ms | Climbs by +0.025 per 10 ms tick for each **front** wheel on the ground. The rear wheels add nothing. With both front wheels down it goes from 1.0× to 2.0× in 200 ms. It does not climb in the air or on the rear wheels alone. |
-| After 800 ms | Full value on the next ground contact, even straight after a long flight. |
+| After 800 ms | Full value as soon as a front wheel touches, even straight after a long flight. Rear wheels alone change nothing. |
 
 What you get on landing depends on how long ago you switched:
 
@@ -32,7 +32,7 @@ What you get on landing depends on how long ago you switched:
 |---|---|
 | **Before 400 ms** | The multiplier stays at 1.0× until the 400 ms mark, then climbs. Still better than switching on landing: in one traced landing the switch came 70 ms before takeoff, the car touched down at 271 ms, and full tire force arrived about 400 ms after touchdown. |
 | **Between 400 and 800 ms** | The multiplier starts low and climbs once the front wheels touch. It is full 200 ms later with both front wheels down, or at the 800 ms mark at the latest. If the rear wheels land first, the climb waits until the front wheels are down too. |
-| **After 800 ms** | Full tire force on the first contact. |
+| **After 800 ms** | Full tire force as soon as a front wheel touches. A rear-wheel landing waits for the front to come down. |
 | **Having switched only at touchdown** | 1.0× for the first 400 ms on the ground, full tire force about 600 ms after touchdown. |
 
 In the controlled tests, switching before takeoff instead of at touchdown meant 3.6–5.6 km/h less speed lost shortly after landing on those jumps.

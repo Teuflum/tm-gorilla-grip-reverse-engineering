@@ -100,7 +100,7 @@ When the mode switches into a left or right direction, the code writes a timesta
 |---|---|
 | Below 400 ms | Leaves it unchanged (`1.0` after a mode change). |
 | 400–800 ms | Adds **one step** toward the target for each touching **front** wheel: the step length in milliseconds divided by 400, capped at the target. With 10 ms steps that is `+0.025` per front wheel per tick. |
-| Above 800 ms | Sets it to the target directly. |
+| Above 800 ms | Sets it to the target directly, on the first update with a touching front wheel. |
 | Any age, multiplier already at or above the target | Sets it to the target, so a falling target pulls the multiplier down at once. |
 
 Two inputs to that rule change the result. First, the target is not always the recovered value: when `vehicle+0x1600` (`plVar2[0x2c0]` in the decompile) is nonzero, the code skips the steering/speed target and uses the base value, which pins the multiplier at `1.0`. The same field makes the steering update read the brake input (`vehicle+0x9c`) where it normally reads gas (`vehicle+0x98`); in the traces below it was set exactly when gas was released while the car moved backwards relative to its nose. This report calls it the **backwards-motion state**. Second, the target itself moves with steering and speed, and a multiplier above it is clamped straight down to it.
@@ -114,7 +114,7 @@ In the measured delayed landing, the mode changed at touchdown near 12.58 s and 
 | At the change | Reset to `1.0` | The timer starts; the stronger tire-force contribution is unavailable. |
 | First ~400 ms | Remains at `1.0` | The car still has tire forces and can gain or lose speed, but this contribution is lower. |
 | 400–800 ms | Rises `0.025` per touching front wheel per tick unless the backwards-motion state is set | Both front wheels down: `1.0` → `2.0` in 200 ms (the measured landing reached `2.0` near ~600 ms). Airborne: no updates, so no rise. |
-| After 800 ms | Target on the next update | Guaranteed full value as soon as the tire-force code runs again. |
+| After 800 ms | Target on the first update with a front wheel down | Full value as soon as a front wheel touches; rear-wheel-only contact changes nothing (landing E). |
 
 **The ~600 ms figure is a measured grounded result, not the game's limit.** The code's hard cutoff is 800 ms (twice the delay). The ramp rate depends on the **front** wheels: the recovery step sits inside the game's per-wheel tire-force loop and runs once for each wheel that is touching the ground **and** has a front-wheel flag set in its wheel descriptor. Only the two front wheels have that flag, so each touching front wheel adds `10 ms / 400 = +0.025` per tick and the rear wheels add nothing. With both front wheels down a full ramp takes 200 ms, matching the ~200 ms measured here.
 
@@ -127,9 +127,9 @@ In the measured delayed landing, the mode changed at touchdown near 12.58 s and 
 
 The contact strings list the wheels in the game's internal order 0–3: front-left, front-right, rear-right, rear-left. The wheel descriptors hold each wheel's mount position, which confirms the order: wheels 0 and 1 sit at `z = +1.782` (front) and wheels 2 and 3 at `z = −1.206` (rear), with wheels 0 and 3 on one side (`x = +0.863/+0.885`) and 1 and 2 on the other. That matches the earlier identification of index 0 as front-left and index 2 as rear-right.
 
-A landing on the rear wheels only (`0010`, `0001`, `0011`) did not occur in the traces. From the code it would not ramp at all until a front wheel touches. Single ticks of `+0.0125` and `+0.0375` appear only where the backwards-motion state clears or the contact set changes; a per-wheel step alone cannot produce them, so the game may split those ticks, which has not been traced.
+Rear-wheel-only contact (`0010`, `0001`, `0011`) leaves the multiplier untouched, even past the 800 ms cutoff, because the whole recovery block is skipped for rear wheels; landing E below shows it. Single ticks of `+0.0125` and `+0.0375` appear only where the backwards-motion state clears or the contact set changes; a per-wheel step alone cannot produce them, so the game may split those ticks, which has not been traced.
 
-**Consequence for jumps.** If the stored mode changes before takeoff and the car lands while mode age is between 400 and 800 ms, the multiplier generally has not ramped in the air. It is still near `1.0` at contact (or whatever value it reached during pre-takeoff contact) and must ramp after touchdown, reaching the target within the grounded ramp time or at 800 ms mode age, whichever comes first. A landing **after** 800 ms mode age gets the full target on its first contact update, matching the observed instant `1.00x → 2.00x` change below. A landing at 600 ms mode age can therefore start with **less than `2.0`**, as the traced landings below show. A landing **before** 400 ms mode age still benefits from the early switch: the timer kept running in the air, so the multiplier starts rising at 400 ms mode age rather than 400 ms after touchdown (landing D).
+**Consequence for jumps.** If the stored mode changes before takeoff and the car lands while mode age is between 400 and 800 ms, the multiplier generally has not ramped in the air. It is still near `1.0` at contact (or whatever value it reached during pre-takeoff contact) and must ramp after touchdown, reaching the target within the grounded ramp time or at 800 ms mode age, whichever comes first. A landing **after** 800 ms mode age gets the full target on the first update with a front wheel down, matching the observed instant `1.00x → 2.00x` change below; if the rear wheels land first, it waits for the front (landing E). A landing at 600 ms mode age can therefore start with **less than `2.0`**, as the traced landings below show. A landing **before** 400 ms mode age still benefits from the early switch: the timer kept running in the air, so the multiplier starts rising at 400 ms mode age rather than 400 ms after touchdown (landing D).
 
 ### Traced landings before and inside the 400–800 ms window
 
@@ -186,6 +186,17 @@ With only the two front wheels down (`1100`) the rate was already `+0.05`, which
 | 673 | `1111` | 0 | `2.000` |
 
 The multiplier stayed at `1.0` on the ground until the delay ran out, then began rising exactly at 400 ms mode age, 129 ms after touchdown. It reached `2.000` through the ramp alone, 402 ms after touchdown and before the 800 ms cutoff. Had the switch happened at touchdown instead, the multiplier would have stayed at `1.0` until 400 ms after contact.
+
+**Landing E** (*11 Spins on >Ice<*, 27 September 2026). The stored mode changed to left at 9.07 s, about 40 ms before takeoff. The rear-right wheel clipped the landing at 850 ms mode age and the car left the ground again; it then landed on the rear wheels alone before the front came down.
+
+| Mode age (ms) | Contacts (FL FR RR RL) | `+0x1600` | Multiplier |
+|---:|---|---:|---:|
+| 850 | `0010` (rear-right clip) | 0 | `1.000` |
+| 860 | `0000` | 0 | `1.000` |
+| 930–940 | `0001`, `0011` (rear wheels only) | 0 | `1.000` |
+| 970 | `1111` | 0 | `2.000` |
+
+Well past the 800 ms cutoff, the multiplier stayed at `1.0` for 120 ms of rear-wheel contact and jumped to `2.000` on the first update with the front wheels down, exactly as the front-wheel condition in the code predicts.
 
 **What sets `+0x1600`.** Over the second and third runs, gas was released nineteen times. The state turned on in exactly the eight releases where the car's forward speed (TICK velocity in the car's local frame) was negative, between −14 and −30 m/s. It stayed off in all eleven releases with forward speed between +9 and +51 m/s. The game reported gear 3 or 4 throughout, so this is not a reverse gear. It turned off on the tick gas returned each time. At 24.17 s, with mode age 862 ms, it dropped a recovered `2.000` to `1.000` and restored `2.000` 50 ms later when gas returned. The writer of `vehicle+0x1600` has not been found in the decompiled code, so this rule is measured, not read from code.
 
