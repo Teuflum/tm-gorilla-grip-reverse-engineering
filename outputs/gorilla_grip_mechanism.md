@@ -36,7 +36,7 @@ The **sixth affected update** reaches `+0.2`, which is the first value above the
 
 For the small-input test, raw `+12/127 ≈ 0.0945` can never carry the smoothed value past `+0.1`, however long it is held. Raw `+13/127 ≈ 0.1024` can cross it once the smoothed value has caught up.
 
-This explains the apparent few-tick wait before the game *recognizes* the new slide direction. A **second, longer delay** starts only when that stored direction changes: the tire-force multiplier stays low for about **400 ms** before recovering. On the measured delayed landing near 12.58 s, it reached its recovered value by about 13.17 s, roughly **0.6 s after touchdown**, with the car on the ground the whole time. A jump can hide this second delay by letting the timer run in the air, but the multiplier itself does not ramp in the air: the full value is guaranteed on landing only once the mode age has passed the code's **800 ms** cutoff. Inside the 400–800 ms window it climbs after contact by `0.0125` per touching wheel per 10 ms physics tick (200 ms from `1.0` to `2.0` with all four wheels down), and only while the force gate at `vehicle+0x1600` is clear. The `0.2` steering change per update was measured for these ice conditions and can differ with the physics conditions; the six- and ten-update estimates are not universal constants.
+This explains the apparent few-tick wait before the game *recognizes* the new slide direction. A **second, longer delay** starts only when that stored direction changes: the tire-force multiplier stays low for about **400 ms** before recovering. On the measured delayed landing near 12.58 s, it reached its recovered value by about 13.17 s, roughly **0.6 s after touchdown**, with the car on the ground the whole time. A jump can hide this second delay by letting the timer run in the air, but the multiplier itself does not ramp in the air: the full value is guaranteed on landing only once the mode age has passed the code's **800 ms** cutoff. Inside the 400–800 ms window it climbs after contact by `0.025` or `0.05` per 10 ms physics tick depending on which wheels touch (200 ms from `1.0` to `2.0` at the faster rate), and not at all while the car is in the backwards-motion state at `vehicle+0x1600`, which lifting off gas while moving backwards turns on. The `0.2` steering change per update was measured for these ice conditions and can differ with the physics conditions; the six- and ten-update estimates are not universal constants.
 
 ## The deciding rule
 
@@ -99,11 +99,11 @@ When the mode switches into a left or right direction, the code writes a timesta
 | Mode age when the tire-force code runs | What the code does to `vehicle+0x14dc` |
 |---|---|
 | Below 400 ms | Leaves it unchanged (`1.0` after a mode change). |
-| 400–800 ms | Adds **one step** toward the target: the step length passed in milliseconds divided by 400, capped at the target. Measured: `+0.0125` per touching wheel per 10 ms tick. |
+| 400–800 ms | Adds **one step** toward the target: the step length passed in milliseconds divided by 400, capped at the target. Measured: `+0.025` or `+0.05` per 10 ms tick depending on the contact set. |
 | Above 800 ms | Sets it to the target directly. |
 | Any age, multiplier already at or above the target | Sets it to the target, so a falling target pulls the multiplier down at once. |
 
-Two inputs to that rule change the result. First, the target is not always the recovered value: when the gate at `vehicle+0x1600` (`plVar2[0x2c0]` in the decompile) is nonzero, the code skips the steering/speed target and uses the base value, which pins the multiplier at `1.0`. Second, the target itself moves with steering and speed, and a multiplier above it is clamped straight down to it.
+Two inputs to that rule change the result. First, the target is not always the recovered value: when `vehicle+0x1600` (`plVar2[0x2c0]` in the decompile) is nonzero, the code skips the steering/speed target and uses the base value, which pins the multiplier at `1.0`. The same field makes the steering update read the brake input (`vehicle+0x9c`) where it normally reads gas (`vehicle+0x98`); in the traces below it was set exactly when gas was released while the car moved backwards relative to its nose. This report calls it the **backwards-motion state**. Second, the target itself moves with steering and speed, and a multiplier above it is clamped straight down to it.
 
 The ramp is therefore **per update, not a function of elapsed time alone**. The multiplier only moves when this code runs, which requires tire-force calculation on a contacting wheel. It does not catch up for time that passed without such updates.
 
@@ -113,18 +113,20 @@ In the measured delayed landing, the mode changed at touchdown near 12.58 s and 
 |---|---:|---|
 | At the change | Reset to `1.0` | The timer starts; the stronger tire-force contribution is unavailable. |
 | First ~400 ms | Remains at `1.0` | The car still has tire forces and can gain or lose speed, but this contribution is lower. |
-| 400–800 ms | Rises `0.0125` per touching wheel per tick while the gate is clear | Four wheels: `1.0` → `2.0` in 200 ms (the measured landing reached `2.0` near ~600 ms). Airborne: no updates, so no rise. |
+| 400–800 ms | Rises `0.025` or `0.05` per tick unless the backwards-motion state is set | At `0.05` per tick: `1.0` → `2.0` in 200 ms (the measured landing reached `2.0` near ~600 ms). Airborne: no updates, so no rise. |
 | After 800 ms | Target on the next update | Guaranteed full value as soon as the tire-force code runs again. |
 
-**The ~600 ms figure is a measured grounded result, not the game's limit.** The code's hard cutoff is 800 ms (twice the delay). The ramp speed depends on how many wheels touch: the traced landing below rose `+0.025` per 10 ms tick on two wheels and `+0.05` on four, i.e. `0.0125` per touching wheel per tick. A full four-wheel ramp therefore takes 200 ms, which matches the ~200 ms measured here. Why the per-wheel step is `0.0125` (half of `10 ms / 400`) has not been resolved in the code.
+**The ~600 ms figure is a measured grounded result, not the game's limit.** The code's hard cutoff is 800 ms (twice the delay). The ramp rate depends on which wheels touch, but not simply on how many: in the traced landings below it was `+0.025` per 10 ms tick with front-right and rear-left down (`0110`) and `+0.05` with both `1110` and `1111`. At `+0.05` a full ramp takes 200 ms, matching the ~200 ms measured here. Single ticks of `+0.0125` and `+0.0375` appear only where the backwards-motion state clears or the contact set changes. That pattern fits a `5 ms / 400 = 0.0125` step applied once or twice per half-tick, but the half-tick split and the rule for one versus two applications are a hypothesis; the code has not confirmed either.
 
 **Consequence for jumps.** If the stored mode changes before takeoff and the car lands while mode age is between 400 and 800 ms, the multiplier generally has not ramped in the air. It is still near `1.0` at contact (or whatever value it reached during pre-takeoff contact) and must ramp after touchdown, reaching the target within the grounded ramp time or at 800 ms mode age, whichever comes first. A landing **after** 800 ms mode age gets the full target on its first contact update, matching the observed instant `1.00x → 2.00x` change below. A landing at 600 ms mode age can therefore start with **less than `2.0`**, as the traced landing below shows.
 
-### Traced landing inside the 400–800 ms window
+### Traced landings inside the 400–800 ms window
 
-Measured on 26 September 2026 on *XPIce26 – Trialthon ft thounej* with a TICK input run, on the same executable build as above (the Trainer's build-signature check passed). The Trainer read `vehicle+0x14dc`, `+0x14d8`, `+0x1600`, and the contact flags once per display frame, with the game slowed to 0.1× around the jump so every 10 ms physics tick was sampled. Mode age is game clock minus `vehicle+0x14d8`. The stored mode changed to right at race time 27.90 s; the input released gas at 27.97 s and pressed it again at 28.52 s.
+Measured on 26 September 2026 on *XPIce26 – Trialthon ft thounej* with two TICK input runs, on the same executable build as above (the Trainer's build-signature check passed). The Trainer read `vehicle+0x14dc`, `+0x14d8`, `+0x1600`, and the contact flags once per display frame, with the game slowed to 0.1× around the landing so every 10 ms physics tick was sampled. Mode age is game clock minus `vehicle+0x14d8`. TICK's live telemetry supplied velocity and rotation for the forward-speed check.
 
-| Mode age (ms) | Contacts (FL FR RL RR) | Gate `+0x1600` | Multiplier |
+**Landing A.** The stored mode changed to right at race time 27.90 s; the input released gas at 27.97 s and pressed it again at 28.52 s.
+
+| Mode age (ms) | Contacts (FL FR RL RR) | `+0x1600` | Multiplier |
 |---:|---|---:|---:|
 | 0–400 | airborne from 50 ms | 0 | `1.000` |
 | 410 | `1000` (first touch) | 1 | `1.013` |
@@ -134,9 +136,24 @@ Measured on 26 September 2026 on *XPIce26 – Trialthon ft thounej* with a TICK 
 | 770–800 | `1110`, then `1111` | 0 | `1.438`, `1.488`, `1.538`, `1.588` |
 | 810 | `1111` | 0 | `2.000` |
 
-Three things follow. The landing started well below `2.0` and ramped on the ground, confirming the in-window case described above. The gate held the multiplier at `1.0` for the first ~210 ms of contact and cleared on the tick the gas input returned (mode age 620), so the ramp only began then. And the final `1.588` → `2.000` jump is the 800 ms cutoff taking over from the ramp. The gate's coincidence with the gas input is a measured correlation; the code that writes `vehicle+0x1600` has not been identified.
+**Landing B** (second input). The stored mode changed to right at 27.92 s with all four wheels down. Gas was released at 28.00 s and `+0x1600` turned on in the same tick, still before takeoff; gas returned at 28.65 s.
 
-The same trace also shows the clamp to a falling target. Gas was released again at 28.95 s with the gate clear, four wheels down, and full right steering. From 29.00 s the multiplier fell from `2.000` to `1.000` in about 190 ms, by `0.025` and then gradually larger steps up to `0.062` per tick. That is the target dropping (it depends on a speed-related curve), with the multiplier clamped to it, not a timed reversal of the ramp.
+| Mode age (ms) | Contacts (FL FR RL RR) | `+0x1600` | Multiplier |
+|---:|---|---:|---:|
+| 80 | `1111` (gas released) | 1 | `1.000` |
+| 230–460 | airborne | 1 | `1.000` |
+| 460–670 | `1000` (first touch) to `1111` | 1 | `1.000` |
+| 730 | `0110` (gas returned) | 0 | `1.013` |
+| 740–750 | `0110` | 0 | `1.038`, `1.063` |
+| 760 | `1110` | 0 | `1.088` |
+| 770–800 | `1110` | 0 | `1.138` → `1.288`, `+0.05` per tick |
+| 810 | `1110` | 0 | `2.000` |
+
+Both landings started well below `2.0` and ramped only on the ground, confirming the in-window case described above. In both, `+0x1600` pinned the multiplier at `1.0` through the first 200–270 ms of contact and cleared on the tick gas returned, so the ramp began only then. Both ended with a jump to `2.000` at 810 ms, the 800 ms cutoff taking over from the ramp. Landing B also settles the per-wheel question: three wheels (`1110`) gave `+0.05` per tick, the same as four in landing A, so the rate is not one fixed step per touching wheel. A third jump in the same run, landing at 830 ms mode age, showed `1.000` on its first grounded display frame and `2.000` on the next, the direct-to-target case.
+
+**What sets `+0x1600`.** In the second run, gas was released nine times. The state turned on in exactly the three releases where the car's forward speed (TICK velocity in the car's local frame) was negative: −16, −30, and −16 m/s. It stayed off in the six releases with forward speed between +9 and +51 m/s. The game reported gear 3 or 4 throughout, so this is not a reverse gear. It turned off on the tick gas returned each time. At 24.17 s, with mode age 862 ms, it dropped a recovered `2.000` to `1.000` and restored `2.000` 50 ms later when gas returned. The writer of `vehicle+0x1600` has not been found in the decompiled code, so this rule is measured, not read from code.
+
+Landing A's run also shows the clamp to a falling target. Gas was released again at 28.95 s with `+0x1600` clear, four wheels down, and full right steering. From 29.00 s the multiplier fell from `2.000` to `1.000` in about 190 ms, by `0.025` and then gradually larger steps up to `0.062` per tick. That is the target dropping (it depends on a speed-related curve), with the multiplier clamped to it, not a timed reversal of the ramp.
 
 These numbers describe a **multiplier on a tire-force calculation**, not a multiplier on the car's speed or a promise of forward acceleration. In the target pair, both variants touched down near 241.5 km/h; at x≈782 the delayed run was 227.323 km/h and the pre-set run was 230.944–230.958 km/h. The recovered multiplier therefore corresponded to **less speed lost after landing** on this trajectory. On another trajectory, the same force difference can feel like stronger slide acceleration.
 
@@ -183,7 +200,7 @@ The landing-memory pair gives the causal link. The `+12` run had mode `2` but mu
 | `FUN_1408426e0`, `FUN_140842310`, and `FUN_14083b200` | Pass car wetness and a model speed gate into each wheel's timed icing update, then turn icing into a tire coefficient. Ice/RoadIce contact starts accumulation; plastic contact starts decay. Wetness at `vehicle+0x13a4` can set a minimum icing level during decay. Model timings at `model+0xcdc/+0xce0/+0xce4` are `1,650/3,300/6,000 ms` for growth, grounded decay, and airborne decay. |
 | `FUN_140869a40` and `FUN_1408465e0` | Increase and decrease `vehicle+0x13a4` under wetting and drying conditions, supporting its identification as the wetness state passed into the wheel icing update. |
 | `FUN_140842500`, called from `FUN_1408426a0` | Writes the four per-wheel coefficients to `vehicle+0x1c2c..0x1c38` and their average to `vehicle+0x1c44`. The main force caller normalizes that average with model coefficient `0.8`, yielding average wheel icing in the tested status. |
-| `FUN_14084f720`, later tire-force loop | Recovers `vehicle+0x14dc` using model delay `400`: unchanged below the delay, `+ step_ms / delay` per call up to twice the delay, then the target directly (caller `140851f00` passes the step in ms via constant `1000`); a multiplier at or above the target is set to the target. When `vehicle+0x1600` (`plVar2[0x2c0]`) is nonzero, the steering/speed target is skipped and the base value is used. Otherwise the target depends on smoothed-steering magnitude through a power of `1.5` and a speed-related model curve, then it multiplies a tire-force vector. |
+| `FUN_14084f720`, later tire-force loop | Recovers `vehicle+0x14dc` using model delay `400`: unchanged below the delay, `+ step_ms / delay` per call up to twice the delay, then the target directly (caller `140851f00` passes the step in ms via constant `1000`); a multiplier at or above the target is set to the target. When `vehicle+0x1600` (`plVar2[0x2c0]`, the backwards-motion state) is nonzero, the steering/speed target is skipped and the base value is used; `FUN_140841500` and `FUN_140846010` then read brake `vehicle+0x9c` in place of gas `vehicle+0x98`. Otherwise the target depends on smoothed-steering magnitude through a power of `1.5` and a speed-related model curve, then it multiplies a tire-force vector. |
 
 The decompiler sometimes omits call arguments. The x64 disassembly shows `lea rcx, [rdi+0x1280]` before the contact call; `FUN_140843150` accesses `param_1+0x534`, giving `vehicle+0x17b4`. The mode code is additionally guarded by `FUN_14083dbd0`, which checks two status bits at `vehicle+0x176c` and `vehicle+0x1370`; both were zero in the paired snapshots. The other reset path tests `vehicle+0x128c & 0x20000`; that bit was also zero here.
 
