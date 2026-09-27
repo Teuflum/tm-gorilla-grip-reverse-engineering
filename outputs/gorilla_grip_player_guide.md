@@ -37,9 +37,9 @@ What you get on landing depends on how long ago you switched:
 
 In the controlled tests, switching before takeoff instead of at touchdown meant 3.6–5.6 km/h less speed lost shortly after landing on those jumps.
 
-**Countersteer as late as possible while the last wheel still touches.** Two things cost speed between the countersteer and takeoff. The tire-force multiplier sits at 1.0× for that whole time, and you are steering against the direction you are sliding, which all but stops the ice slide and slows the car a lot. If the jump is long enough (800 ms or more after the switch), countersteering on the last possible tick gives full tire force on landing with no loss before takeoff. The [Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) grades exactly that lead time.
+**Countersteer as late as possible while the last wheel still touches.** Two things cost speed between the countersteer and takeoff. The tire-force multiplier sits at 1.0× for that whole time, and you are steering against the direction you are sliding, which all but stops the ice slide and slows the car a lot. If the jump is long enough (800 ms or more after the switch), countersteering on the last possible tick gives full tire force on landing with no loss before takeoff. The [Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) grades exactly that lead time: S+ means the direction switched on the takeoff tick itself, S one 10 ms tick before it.
 
-## Lower tire-force multiplier
+## What lowers the tire-force multiplier
 
 - **Less steering, less tire force.** The full value depends on how far you steer. At high speed on ice it measured about 2.0× at full steering, 1.72× at 80%, 1.46× at 60%, 1.25× at 40%, and 1.09× at 20%. The 10% threshold only decides the direction.
 - **Centering the steering.** Between −10% and +10% the stored direction is kept for **300 ms**, then cleared (the clearing needs a wheel on the ground). Steer back the same way within 300 ms and there is no new wait, although the multiplier drops while you are near center. After 300 ms, steering out again counts as a new direction and restarts the 400 ms timer. After a long flight, landing with centered steering can clear the old direction.
@@ -55,6 +55,5 @@ In the controlled tests, switching before takeoff instead of at touchdown meant 
 ## Checklist
 
 1. Have icy tires before the jump.
-2. Steer clearly past 10% toward the new slide direction, early enough that the game's smoothed steering crosses it (about 50–60 ms from full opposite lock) before the last wheel leaves the ground.
-3. Countersteer as close to takeoff as that allows.
-4. Land with steering in the same direction.
+2. Countersteer as late as possible, but early enough that the game's smoothed steering crosses 10% (about 50–60 ms from full opposite lock) before the last wheel leaves the ground.
+3. Land with steering in the same direction.

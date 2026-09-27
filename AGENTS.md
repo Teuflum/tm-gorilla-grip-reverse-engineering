@@ -12,8 +12,8 @@ the workflow and dependencies.
 - `work/` and `outputs/` contain both selected tracked files and ignored
   local data. Use `git ls-files` and review individual additions; do not
   force-add whole directories.
-- The map and replay live one folder above this repository. Several scripts
-  reference their current absolute paths.
+- The map and replay live one folder above this repository and are not
+  published. `work/setup_tick_automation.py` checks the loaded map by its UID.
 - The local `Trackmania.exe`, Ghidra tools/projects, memory captures, TICK
   telemetry, and other generated files are research inputs, not publishable
   repository content. Keep TICK keys and runtime configuration local.
