@@ -1,6 +1,6 @@
 # Trackmania gorilla grip research
 
-This repository contains the [mechanism report](outputs/gorilla_grip_mechanism.md), a shorter [player guide](outputs/gorilla_grip_player_guide.md), and scripts used to investigate instant ice-slide grip in the current Trackmania physics build. The report identifies a car-level slide-direction state, a strict ±0.1 threshold on smoothed steering, a 300 ms neutral timeout, and an any-wheel contact condition. It also compares clean tarmac with icy tires on plastic and explains why a short return to neutral preserves the direction but temporarily reduces the force multiplier.
+This repository contains the [mechanism report](outputs/gorilla_grip_mechanism.md), a shorter [player guide](outputs/gorilla_grip_player_guide.md), and scripts used to investigate instant ice-slide grip in the current Trackmania physics build. The report identifies a car-level slide direction that changes only while a wheel touches the ground, when smoothed steering passes ±0.1. Each change holds a tire-force multiplier at 1.0 for 400 ms; it then ramps up per touching front wheel and reaches its full value by 800 ms. The report also covers the 300 ms neutral timeout, tire icing on plastic, and the physics-tick fields the Trainer uses for timing.
 
 ## Interactive graphs
 
@@ -23,7 +23,7 @@ The charts use the tested build's values and state their simplifying assumptions
 
 ## Related plugin
 
-[Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) is the separate Openplanet plugin project. Its specification and implementation plan cover exact steering telemetry, timing grades, movable widgets, local audio, and run history.
+[Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) is the player-facing Openplanet plugin built on these findings. It reads the fields described in the report, dates takeoff to the 10 ms physics tick, and grades how early the slide direction switched before the last wheel left the ground.
 
 ## Included
 
@@ -33,7 +33,8 @@ The charts use the tested build's values and state their simplifying assumptions
 - `work/scan_live_vehicle.py`, `work/capture_live_phy.py`, `work/capture_takeoff_memory.py`, and `work/analyze_phy_memory.py`: read-only vehicle-memory capture and analysis. The capture tools use Windows `ReadProcessMemory`; they never write to game memory.
 - `work/create_*variants.py` and `work/analyze_jump3_trials.py`: controlled steering variants and landing-speed comparison.
 - `work/create_neutral_trial.py` and `work/analyze_neutral_capture.py`: 100 ms and 400 ms neutral-steering experiments on grounded ice.
-- `outputs/TICK_neutral_100ms_ice.txt` and `outputs/TICK_neutral_400ms_ice.txt`: the exact extra steering actions for those two experiments.
+- `outputs/TICK_baseline_right.txt`: the baseline TICK input for the report's map. `outputs/TICK_right_12_from_1126_through_1131.txt` is its `+12` variant from the controlled pair, and `outputs/TICK_neutral_100ms_ice.txt` and `outputs/TICK_neutral_400ms_ice.txt` hold the extra steering actions for the neutral experiments.
+- `work/analyze_tarmac_capture.py`: prints force-multiplier and mode changes in the clean-tarmac capture.
 - `work/inspect_model_curves.py` and `work/FlixInspect/`: read-only model-curve and GBX map/ghost inspection. The latter uses GBX.NET through .NET 10.
 - `work/scan_float_code_refs.py` and `work/ghidra_scripts/`: scripts used to locate and inspect the physics branch in a locally obtained game binary.
 
@@ -42,7 +43,7 @@ The charts use the tested build's values and state their simplifying assumptions
 These are research scripts for the specific map and replay used in the report, rather than a packaged Openplanet release. You need your own legally obtained Trackmania installation, the map/replay, TICK, Openplanet, and VehicleState. Ghidra is needed only for the code-inspection scripts. `scan_float_code_refs.py` uses Python packages `pefile` and `capstone`.
 
 1. Install `outputs/GorillaGripLogger` as an Openplanet script and ensure VehicleState is available.
-2. Supply your own TICK baseline as `outputs/TICK_baseline_right.txt`, review the map UID and collection settings in `work/setup_tick_automation.py`, and run that setup script once. It writes `work/tick_automation_state.json` locally.
+2. Review the map UID and collection settings in `work/setup_tick_automation.py`, then run it once. It loads `outputs/TICK_baseline_right.txt` as the baseline revision. It writes `work/tick_automation_state.json` locally.
 3. Generate variants with the relevant `work/create_*variants.py` script, then run `work/auto_trials.py <variant-names>`. The TICK client reads its key from TICK's local runtime configuration at execution time. No key is stored in this repository.
 4. For a physics-memory check, first locate the current vehicle object with `work/capture_live_phy.py`; then use that process ID and object address with `work/capture_takeoff_memory.py`. The address changes when the game restarts. Analyze the captured file with `work/analyze_phy_memory.py`.
 5. To list material and icing transitions from a map and a ghost, run `dotnet run --project work/FlixInspect/FlixInspect.csproj -- <map.Map.Gbx> <run.Ghost.gbx>` using your own files.
@@ -51,4 +52,4 @@ The scripts have case-specific coordinates, action times, and internal addresses
 
 The Gorilla Grip Logger starts idle on load. Manual buttons start a trial; a fresh automation command can still start an automated one. It ignores a command left in storage from a previous session. Its `FLSteerAngle`/`FRSteerAngle` columns are visual wheel angles, not the normalized internal steering field used for the ±0.1 mode decision; see the report for the direct physics-memory comparison.
 
-The prototype Rater used during this research read the active physics car through the current `CSmPlayer` and validated the read before displaying it as exact. Its test harness remains in `work/test_rater_in_game.py` as a record of the controlled +13/+12 comparison. The [Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) now owns the player-facing plugin and dates takeoff and landing to the physics tick (see *Physics-tick timing fields* in the report). The stored force multiplier can read `1.00x` in air and update to `2.00x` on contact; it is part of the tire-force calculation, not a direct speed or acceleration reading.
+`work/test_rater_in_game.py` is the test harness of the prototype Rater used during this research, kept as a record of the controlled +13/+12 comparison; the Rater's source is in the Git history. The stored force multiplier can read `1.00x` in air and update to `2.00x` on contact: it is part of the tire-force calculation, not a speed or acceleration reading.
