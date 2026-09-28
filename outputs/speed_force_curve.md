@@ -16,7 +16,7 @@ target = 1 + curve(x) × s^1.5
 - **`x`** is the car's velocity component along the lateral axis of the steered front wheel, as an absolute value, in m/s. The car-local velocity is the vector the caller `FUN_140851f00` also copies to `vehicle+0x1424..0x142c`. The code takes the dot product with the wheel's lateral axis, applies an absolute-value mask, and passes the result to the curve with no `× 3.6`. Other curve calls in the same function do multiply by 3.6, so this one is in m/s.
 - **The steered wheel angle** is `model+0xDA8` (45° on the Stadium car) × smoothed steering × a surface factor. The surface factor is the icing curve described in the report (`model+0xCF0` on ice-family materials, `model+0xD40` otherwise). On settled ice it is `1`, so full steering turns the wheel lateral axis 45°. Just after landing, when average icing has not fully returned, it is slightly less (about 43°).
 
-With `v` the car's horizontal speed and `α` the angle between the steered front wheels and the direction of travel, `x = v × |sin α|`. So the curve starts at 36 km/h of `x` and saturates at 108 km/h of `x`:
+With `v` the car's horizontal speed and `α` the angle between the steered front wheels and the direction of travel, `x = v × sin α`, with `α` between 0° and 180°. So the curve starts at 36 km/h of `x` and saturates at 108 km/h of `x`:
 
 ```
 target at full steering = 1 + clamp((x − 36 km/h) / 72 km/h, 0, 1)
