@@ -62,7 +62,7 @@
       <div class="control-row"><label for="steer-size-range">Internal steering magnitude: <output id="steer-size-value" for="steer-size-range">20%</output></label><input id="steer-size-range" type="range" min="0" max="100" value="20" step="1"></div>
       <div class="chart-wrap"><svg id="force-chart" role="img" aria-label="Recovered tire-force multiplier versus internal steering magnitude in the tested high-speed ice case"></svg></div>
       <p class="takeaway" id="force-summary" aria-live="polite"></p>
-      <p class="fine">In the measured high-speed ice samples the target is about <code>1 + |internal steering|^1.5</code>: 0% → 1.0, 20% → 1.089, 60% → 1.465, 100% → 2.0. The model also depends on speed. On the clean tarmac start of ANGULAR ↻ MOMENTUM, this icy multiplier stayed at its baseline 1.0. This multiplier acts on a tire-force term, not on vehicle speed. Steering near zero can temporarily reduce it even while the stored direction survives the 300 ms neutral timeout.</p>
+      <p class="fine">In the measured high-speed ice samples the target is about <code>1 + s^1.5</code>, where s is the internal steering amount without its sign: 0% → 1.0, 20% → 1.089, 60% → 1.465, 100% → 2.0. The model also depends on speed. On the clean tarmac start of ANGULAR ↻ MOMENTUM, this icy multiplier stayed at its baseline 1.0. This multiplier acts on a tire-force term, not on vehicle speed. Steering near zero can temporarily reduce it even while the stored direction survives the 300 ms neutral timeout.</p>
     </section>
 
     <section class="card" id="recovery" aria-labelledby="recovery-title">
