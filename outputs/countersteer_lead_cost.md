@@ -68,6 +68,10 @@ Cost at each grade boundary, interpolated from the tables (the D value extrapola
 
 **The data supports keeping the limits as they are.** On both jumps the cost rises steadily through S, A, B, C and D, so the grades rank switches by what they cost. How much each grade costs depends on how deep the slide is at takeoff, which a lead-only grade cannot see: from a deep slide every 10 ms is worth about 1 km/h and 5 ms, so even the tight S and A bands matter; from an almost straight takeoff nothing below 30 ms is measurable. Both jumps support Teuflum's rule that a later switch is better when the flight is long enough for full force: every lead reached full force on landing, and every millisecond of lead only cost speed.
 
+## Conclusion for play
+
+On maps built for the current ice physics, where jumps give enough airtime, **countersteer as late as possible, but early enough that the grip is back when the front wheels land.** Once the switch plus the flight reach about 800 ms before a front wheel touches, every extra millisecond of lead only costs speed; both jumps here measured that. On a short hop an earlier switch helps only until the grip is fully back at touchdown, and any lead beyond that is lost; this part comes from the code and the landing traces, not from a lead series on a short jump. Countersteering early on purpose to slow down and land sooner, for example to make a turn right after a short jump on a map not built for this physics, is a line choice that trades speed for position; it does not contradict the rule.
+
 ## Limits of this measurement
 
 - Two jumps on one map. The takeoff slip angle looks like the main factor; other jumps can fall anywhere between the two.
