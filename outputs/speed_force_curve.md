@@ -1,14 +1,16 @@
 # How speed limits the recovered tire force
 
-Read on 28 September 2026 from the saved decompile of `FUN_14084f720` (`14084f98a.c`), its disassembly, and a read-only memory read of the Stadium car's model with the car spawned on `ANGULAR _ MOMENTUM.Map.Gbx`, on the same executable build as the [mechanism report](gorilla_grip_mechanism.md). The question: the report measured a recovered target of `1 + |smoothed steering|^1.5` (2.0 at full steering) in high-speed samples and noted a speed-related model curve. What is that curve, and what does it take as input?
+Read on 28 September 2026 from the saved decompile of `FUN_14084f720` (`14084f98a.c`), its disassembly, and a read-only memory read of the Stadium car's model with the car spawned on `ANGULAR _ MOMENTUM.Map.Gbx`, on the same executable build as the [mechanism report](gorilla_grip_mechanism.md). The question: the report measured a recovered target of `1 + s^1.5` (`s` the steering amount without its sign) (2.0 at full steering) in high-speed samples and noted a speed-related model curve. What is that curve, and what does it take as input?
 
 ## The formula
 
 When the backwards-motion state `vehicle+0x1600` is clear, the target of the tire-force multiplier at `vehicle+0x14dc` is:
 
 ```
-target = 1 + curve(x) × |smoothed steering|^1.5
+target = 1 + curve(x) × s^1.5
 ```
+
+- **`s`** is the smoothed steering amount without its sign, from 0 to 1; left and right count the same.
 
 - **`curve`** is the model curve at `model+0xFA0`. On the Stadium car it has two points, `(10, 0)` and `(30, 1)`, is linear between them and clamped outside. The live car's model pointer (`vehicle+0x88`) leads to this curve.
 - **`x`** is the car's velocity component along the lateral axis of the steered front wheel, as an absolute value, in m/s. The car-local velocity is the vector the caller `FUN_140851f00` also copies to `vehicle+0x1424..0x142c`. The code takes the dot product with the wheel's lateral axis, applies an absolute-value mask, and passes the result to the curve with no `× 3.6`. Other curve calls in the same function do multiply by 3.6, so this one is in m/s.
@@ -48,6 +50,6 @@ The boost starts where `v × sin α` passes 36 km/h and is full at 108 km/h:
 
 - **Slow landings get little or nothing.** The same well-timed switch that gives 2.0 at high speed gives 1.0 below about 51 km/h in a straight run or a 90° slide, and only about 1.25 at 75 km/h. The recovery timer and the stored direction work the same at any speed; only the size of the reward shrinks.
 - **The wheel angle to the travel direction matters as much as speed.** When the steered wheels point where the car is going, `x` is near zero and there is no boost, however fast the car is. When they point across the travel direction, the boost is full from 108 km/h.
-- **The report's 2.0 was a saturated value.** Every earlier sample had `x` above 30 m/s, which is why `1 + |steering|^1.5` fitted them exactly. The graphs' `targetMultiplier` uses the same saturated form.
+- **The report's 2.0 was a saturated value.** Every earlier sample had `x` above 30 m/s, which is why `1 + s^1.5` fitted them exactly. The graphs' `targetMultiplier` uses the same saturated form.
 
 Not measured here: a speed-only run on the ramp itself (`x` between 10 and 30 m/s) with the car's exact velocity, and what a smaller target costs in speed after a slow landing.
