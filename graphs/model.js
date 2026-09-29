@@ -55,9 +55,22 @@
     return steeringAfterUpdates(lastContactUpdate) > 0.1 ? 'right' : 'left';
   }
 
-  // Recovered target observed in the report's high-speed ice samples.
-  function targetMultiplier(steeringMagnitude) {
-    return 1 + Math.pow(clamp(Math.abs(steeringMagnitude)), 1.5);
+  // Stadium car speed curve (model+0xFA0): (10, 0) to (30, 1) in m/s of
+  // car speed across the steered front wheels, i.e. 36 to 108 km/h.
+  function speedCurve(sidewaysKmh) {
+    return clamp((sidewaysKmh - 36) / 72);
+  }
+
+  // Speed across the front wheels when they point wheelAngleDeg away from
+  // the direction of travel.
+  function sidewaysSpeed(speedKmh, wheelAngleDeg) {
+    return speedKmh * Math.abs(Math.sin(wheelAngleDeg * Math.PI / 180));
+  }
+
+  // Recovered target: 1 + curve(x) * s^1.5. Leaving out sidewaysKmh gives
+  // the saturated high-speed case the report's samples measured.
+  function targetMultiplier(steeringMagnitude, sidewaysKmh = Infinity) {
+    return 1 + speedCurve(sidewaysKmh) * Math.pow(clamp(Math.abs(steeringMagnitude)), 1.5);
   }
 
   // A visual interpolation through approximate points from one delayed
@@ -76,7 +89,8 @@
 
   return {
     icePoints, otherPoints, iceWeight, otherWeight, ordinaryWeight,
-    icingAt, steeringAfterUpdates, modeAtTakeoff, targetMultiplier,
+    icingAt, steeringAfterUpdates, modeAtTakeoff, speedCurve, sidewaysSpeed,
+    targetMultiplier,
     recoverySketch, neutralModeAt,
   };
 });

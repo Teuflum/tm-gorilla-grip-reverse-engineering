@@ -4,7 +4,7 @@ How Trackmania's ice "gorilla grip" works, explained for players. The numbers co
 
 ## The short version
 
-On icy tires the game remembers which way you are sliding, **left or right**. Part of the car's tire force is scaled by a **tire-force multiplier** that runs from 1.0× to 2.0×. Every time the stored direction changes, that multiplier drops back to 1.0× and a **400 ms** timer starts. Only after the timer runs out does the multiplier climb back.
+On icy tires the game remembers which way you are sliding, **left or right**. Part of the car's tire force is scaled by a **tire-force multiplier** that runs from 1.0× to 2.0× (the full 2.0× needs full steering and enough speed). Every time the stored direction changes, that multiplier drops back to 1.0× and a **400 ms** timer starts. Only after the timer runs out does the multiplier climb back.
 
 The trick is to change the stored direction **just before a jump**, while a wheel is still on the ground. The timer then runs during the flight, and the tire force is back to full, or nearly, when you land. Change it on landing instead and you sit through the whole wait after touchdown.
 
@@ -18,7 +18,7 @@ The trick is to change the stored direction **just before a jump**, while a whee
 
 ## The tire-force timer
 
-The multiplier scales part of the tire force the game calculates for your wheels. It reached **2.0×** at full steering on ice in our tests; **1.0×** is its base value. It is not a speed value.
+The multiplier scales part of the tire force the game calculates for your wheels. It reached **2.0×** at full steering and high speed on ice in our tests; **1.0×** is its base value. It is not a speed value.
 
 | Time since the direction changed | Tire-force multiplier |
 |---|---|
@@ -41,6 +41,7 @@ In the controlled tests, switching before takeoff instead of at touchdown meant 
 
 ## What lowers the tire-force multiplier
 
+- **Too slow, little or no boost.** The boost above 1.0× depends on how fast the car moves sideways across the front wheels. At full steering in a straight run or a 90° slide there is none below about **51 km/h**, about 1.48× at 100 km/h, and the full 2.0× from about **153 km/h**. In a slide of about 45°, countersteering lines the front wheels up with where the car is going, so the boost stays very small at any speed. The timer and the stored direction work the same at any speed. [Details](speed_force_curve.md).
 - **Less steering, less tire force.** The full value depends on how far you steer. At high speed on ice it measured about 2.0× at full steering, 1.72× at 80%, 1.46× at 60%, 1.25× at 40%, and 1.09× at 20%. The 10% threshold only decides the direction.
 - **Centering the steering.** Between −10% and +10% the stored direction is kept for **300 ms**, then cleared (the clearing needs a wheel on the ground). Steer back the same way within 300 ms and there is no new wait, although the multiplier drops while you are near center. After 300 ms, steering out again counts as a new direction and restarts the 400 ms timer. After a long flight, landing with centered steering can clear the old direction.
 

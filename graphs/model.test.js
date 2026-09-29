@@ -47,6 +47,24 @@ test('steering threshold and recovered force target are distinct values', () => 
   close(model.targetMultiplier(1), 2);
 });
 
+test('speed across the front wheels scales the recovered target', () => {
+  close(model.speedCurve(36), 0);
+  close(model.speedCurve(72), 0.5);
+  close(model.speedCurve(108), 1);
+  close(model.speedCurve(200), 1);
+  close(model.sidewaysSpeed(100, 90), 100);
+  close(model.sidewaysSpeed(100, 0), 0);
+  // Full steering, from the table in outputs/speed_force_curve.md.
+  for (const [angle, speed, target] of [
+    [45, 50, 1], [45, 75, 1.24], [45, 100, 1.48], [45, 150, 1.97], [45, 200, 2],
+    [90, 50, 1.19], [90, 100, 1.89], [30, 150, 1.54], [15, 200, 1.22], [0, 250, 1],
+  ]) close(model.targetMultiplier(1, model.sidewaysSpeed(speed, angle)), target, 0.006);
+  // A straight run or a 90° slide at full steering: boost from ~51, full from ~153 km/h.
+  close(model.targetMultiplier(1, model.sidewaysSpeed(50.9, 45)), 1, 0.001);
+  close(model.targetMultiplier(1, model.sidewaysSpeed(152.8, 45)), 2, 0.001);
+  close(model.targetMultiplier(0.6, model.sidewaysSpeed(100, 45)), 1 + 0.4647580015 * (100 * Math.SQRT1_2 - 36) / 72);
+});
+
 test('illustrative recovery curve is anchored to measured landing landmarks', () => {
   close(model.recoverySketch(0), 1);
   close(model.recoverySketch(370), 1);

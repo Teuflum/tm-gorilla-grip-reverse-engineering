@@ -126,6 +126,23 @@
       referenceLines:[{axis:'x',value:10,color:C.orange}],dots:[{x:magnitude*100,y:target,color:C.blue}] });
   }
 
+  function updateSpeed() {
+    const speed=Number(document.getElementById('speed-range').value);
+    const angle=Number(document.getElementById('angle-range').value);
+    const sideways=m.sidewaysSpeed(speed,angle);
+    const target=m.targetMultiplier(1,sideways);
+    const sine=Math.sin(angle*Math.PI/180);
+    const kmh=v=>`${Math.round(v)} km/h`;
+    setText('speed-value',kmh(speed)); setText('angle-value',`${angle}°`);
+    setText('speed-summary',`${kmh(speed)} with the front wheels ${angle}° off the travel direction → ${kmh(sideways)} across the wheels → target about ${target.toFixed(2)}× at full steering. `+
+      (angle===0 ? 'Wheels pointing where the car goes get no boost at any speed.'
+        : `At this angle the boost starts at ${kmh(36/sine)} and is full from ${kmh(108/sine)}.`));
+    const curve=a=>samples(0,250,1,v=>m.targetMultiplier(1,m.sidewaysSpeed(v,a)));
+    drawChart('speed-chart',{xMin:0,xMax:250,yMin:1,yMax:2,xTicks:[0,50,100,150,200,250],yTicks:[1,1.25,1.5,1.75,2],xFormat:v=>`${v}`,yFormat:v=>`${v.toFixed(2)}×`,xLabel:'Car speed (km/h)',yLabel:'Recovered multiplier, full steering',
+      series:[{name:`${angle}° (selected)`,color:C.blue,points:curve(angle),legendWidth:175},{name:'90°',color:C.gray,dash:'6 5',points:curve(90),legendWidth:95},{name:'45°: straight run or 90° slide',color:C.orange,dash:'6 5',points:curve(45),legendWidth:290}],
+      referenceLines:[{axis:'x',value:speed,color:C.purple}],dots:[{x:speed,y:target,color:C.blue}] });
+  }
+
   function updateRecovery() {
     const lead=Number(document.getElementById('lead-range').value);
     const landing=m.recoverySketch(lead);
@@ -153,7 +170,8 @@
   for (const id of ['initial-range','wetness-range','time-range']) document.getElementById(id).addEventListener('input',updateIcingTime);
   document.getElementById('contact-range').addEventListener('input',updateSteering);
   document.getElementById('steer-size-range').addEventListener('input',updateForce);
+  for (const id of ['speed-range','angle-range']) document.getElementById(id).addEventListener('input',updateSpeed);
   document.getElementById('lead-range').addEventListener('input',updateRecovery);
   document.getElementById('neutral-range').addEventListener('input',updateNeutral);
-  updateMix();updateIcingTime();updateSteering();updateForce();updateRecovery();updateNeutral();
+  updateMix();updateIcingTime();updateSteering();updateForce();updateSpeed();updateRecovery();updateNeutral();
 })();
