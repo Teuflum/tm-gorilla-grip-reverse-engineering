@@ -4,7 +4,7 @@ This repository contains the [mechanism report](outputs/gorilla_grip_mechanism.m
 
 ## Interactive graphs
 
-Download or clone the repository, then open [graphs/interactive.html](graphs/interactive.html) in a browser. It works offline with no install or external scripts. Six interactive graphs let you change the icing level, wetness, takeoff contact deadline, steering amount, time before landing, and neutral-steering duration. The page keeps **tire icing**, **the weight of the icy tire-force contribution**, **stored direction**, and **the tire-force multiplier** visibly separate.
+Download or clone the repository, then open [graphs/interactive.html](graphs/interactive.html) in a browser. It works offline with no install or external scripts. Seven interactive graphs let you change the icing level, wetness, takeoff contact deadline, steering amount, speed and front-wheel angle, time before landing, and neutral-steering duration. The page keeps **tire icing**, **the weight of the icy tire-force contribution**, **stored direction**, and **the tire-force multiplier** visibly separate.
 
 The SVG previews open directly on GitHub:
 
@@ -12,6 +12,7 @@ The SVG previews open directly on GitHub:
 - [Icing buildup and decay](graphs/static/icing-over-time.svg)
 - [Steering threshold before takeoff](graphs/static/steering-before-takeoff.svg)
 - [Force target versus steering](graphs/static/steering-force-target.svg)
+- [Force target versus speed](graphs/static/speed-force-target.svg)
 - [Force recovery after a direction change](graphs/static/force-recovery.svg)
 - [300 ms neutral-steering timeout](graphs/static/neutral-steering-timeout.svg)
 

@@ -42,6 +42,7 @@ svg { display:block; width:100%; min-width:570px; height:auto; }
 .fine { color:var(--muted); margin:10px 0 0 58px; font-size:.9rem; }
 .source { background:#dcebf3; border:1px solid #b8d2e2; border-radius:13px; padding:18px 21px; }
 .source a { color:#07598f; font-weight:750; }
+.fine a { color:#07598f; }
 footer { padding:0 0 35px; color:var(--muted); font-size:.83rem; }
 code { background:#eff3f6; border-radius:4px; padding:1px 4px; }
 @media(max-width:750px) { .hero { padding-top:35px; } .controls-grid,.two-col { grid-template-columns:1fr; } .control-row,.controls-grid,.chart-wrap,.two-col,.takeaway,.fine { margin-left:0; } .section-heading { gap:10px; } .step { width:35px; height:35px; } .card { padding:20px 16px; } }
