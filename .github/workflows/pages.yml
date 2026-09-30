@@ -1,0 +1,52 @@
+# Publishes graphs/ as a GitHub Pages site, so the interactive graphs open in
+# the browser instead of showing as HTML source on GitHub.
+# Needs Settings > Pages > Build and deployment > Source: GitHub Actions.
+name: Graphs page
+
+on:
+  push:
+    branches: [main]
+    paths: ['graphs/**', '.github/workflows/pages.yml']
+  pull_request:
+    paths: ['graphs/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Check the graph model
+        run: node --test graphs/model.test.js
+      - name: Collect the page
+        run: |
+          mkdir _site
+          cp graphs/interactive.html graphs/app.js graphs/model.js graphs/style.css _site/
+          cp graphs/interactive.html _site/index.html
+          cp -r graphs/static _site/static
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
