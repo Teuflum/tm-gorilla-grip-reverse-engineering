@@ -35,6 +35,10 @@
     if (config.shadeBefore !== undefined) {
       add(svg, 'rect', { x:P.left, y:P.top, width:Math.max(0,x(config.shadeBefore)-P.left), height:plotHeight, fill:'#eaf5f2' });
     }
+    for (const range of config.shadeRanges || []) {
+      add(svg, 'rect', { x:x(range.from), y:P.top, width:x(range.to)-x(range.from), height:plotHeight, fill:'#fbeee2' });
+      if (range.label) add(svg, 'text', { x:(x(range.from)+x(range.to))/2, y:P.bottom-10, 'text-anchor':'middle', fill:'#8a4a12', 'font-size':12, 'font-weight':650 }, range.label);
+    }
     for (const tick of config.yTicks) {
       const yy = y(tick);
       add(svg, 'line', { x1:P.left, y1:yy, x2:P.right, y2:yy, stroke:'#dbe4ed', 'stroke-width':1 });
@@ -165,6 +169,30 @@
       referenceLines:[{axis:'x',value:300,color:C.orange},{axis:'x',value:duration,color:C.gray}],dots:[{x:duration,y:retained?1:0,color:C.purple}] });
   }
 
+  function updateFlick() {
+    const time=Number(document.getElementById('flick-range').value);
+    const rows=globalThis.PlasticFlickData.map(r=>{
+      const wheel=m.wheelAngle(1,r.icing,r.iceFamily), wheelIce=m.wheelAngle(1,r.icing,true);
+      return { ...r, wheel, wheelIce, target:m.slideTarget(r.speedKmh,r.slipDeg,wheel,1), targetIce:m.slideTarget(r.speedKmh,r.slipDeg,wheelIce,1) };
+    });
+    const at=rows.reduce((best,r)=>Math.abs(r.t-time)<Math.abs(best.t-time)?r:best);
+    const plastic=rows.filter(r=>!r.iceFamily);
+    const shadeRanges=[{ from:plastic[0].t, to:rows.find(r=>r.t>plastic.at(-1).t).t, label:'All four wheels on plastic' }];
+    const deg=v=>`${v.toFixed(1)}°`;
+    setText('flick-value',`${(at.t/1000).toFixed(3)} s`);
+    setText('flick-summary',`${(at.t/1000).toFixed(3)} s: ${at.iceFamily?'a wheel on RoadIce, so the ice curve sets the wheel angle':'all four wheels on plastic, so the plastic curve sets the wheel angle'}. `+
+      `The car travels ${deg(at.slipDeg)} from its nose, the steered wheels point ${deg(at.wheel)} from it: ${deg(Math.abs(at.slipDeg-at.wheel))} apart at ${Math.round(at.speedKmh)} km/h → target ${at.target.toFixed(2)}×, logged ${at.force.toFixed(3)}×.`+
+      (at.iceFamily?'':` With the ice curve the wheels would point ${deg(at.wheelIce)} and the target would be ${at.targetIce.toFixed(2)}×.`));
+    const timeAxis={xMin:7500,xMax:8750,xTicks:[7500,7750,8000,8250,8500,8750],xFormat:v=>`${(v/1000).toFixed(2)} s`,xLabel:'Race time',shadeRanges,referenceLines:[{axis:'x',value:at.t,color:C.purple}]};
+    const line=key=>rows.map(r=>[r.t,r[key]]);
+    drawChart('flick-angle-chart',{...timeAxis,yMin:-15,yMax:110,yTicks:[-15,0,15,30,45,60,75,90,105],yFormat:v=>`${v}°`,yLabel:'Angle from the car’s nose',
+      series:[{name:'Travel direction (slip)',color:C.blue,points:line('slipDeg'),legendWidth:215},{name:'Steered wheels',color:C.orange,points:line('wheel'),legendWidth:160},{name:'Wheels with the ice curve',color:C.gray,dash:'6 5',points:line('wheelIce'),legendWidth:240}],
+      dots:[{x:at.t,y:at.slipDeg,color:C.blue},{x:at.t,y:at.wheel,color:C.orange}] });
+    drawChart('flick-force-chart',{...timeAxis,yMin:1,yMax:2,yTicks:[1,1.25,1.5,1.75,2],yFormat:v=>`${v.toFixed(2)}×`,yLabel:'Tire-force multiplier',
+      series:[{name:'Target with the ice curve',color:C.gray,dash:'6 5',points:line('targetIce'),legendWidth:240},{name:'Predicted target',color:C.green,dash:'6 5',points:line('target'),legendWidth:170},{name:'Logged by the Trainer',color:C.blue,points:line('force'),legendWidth:205}],
+      dots:[{x:at.t,y:at.force,color:C.blue}] });
+  }
+
   document.getElementById('icing-range').addEventListener('input',updateMix);
   document.querySelectorAll('[data-icing]').forEach(button=>button.addEventListener('click',()=>{document.getElementById('icing-range').value=button.dataset.icing;updateMix();}));
   for (const id of ['initial-range','wetness-range','time-range']) document.getElementById(id).addEventListener('input',updateIcingTime);
@@ -173,5 +201,6 @@
   for (const id of ['speed-range','angle-range']) document.getElementById(id).addEventListener('input',updateSpeed);
   document.getElementById('lead-range').addEventListener('input',updateRecovery);
   document.getElementById('neutral-range').addEventListener('input',updateNeutral);
-  updateMix();updateIcingTime();updateSteering();updateForce();updateSpeed();updateRecovery();updateNeutral();
+  document.getElementById('flick-range').addEventListener('input',updateFlick);
+  updateMix();updateIcingTime();updateSteering();updateForce();updateSpeed();updateRecovery();updateNeutral();updateFlick();
 })();

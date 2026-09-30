@@ -1,9 +1,10 @@
-// Export the same seven default SVG charts shown by interactive.html.
+// Export the same default SVG charts shown by interactive.html.
 // This tiny DOM adapter keeps the renderer dependency-free in Node.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const model = require('./model.js');
+const plasticFlick = require('./plastic-flick-data.js');
 
 class Element {
   constructor(tag) { this.tag = tag; this.attributes = {}; this.children = []; this.textContent = ''; this.style = {}; this.value = ''; }
@@ -13,8 +14,8 @@ class Element {
   addEventListener() {}
 }
 
-const names = ['mix-chart','icing-time-chart','steering-chart','force-chart','speed-chart','recovery-chart','neutral-chart'];
-const values = { 'icing-range':80, 'initial-range':100, 'wetness-range':0, 'time-range':1650, 'contact-range':6, 'steer-size-range':20, 'speed-range':100, 'angle-range':30, 'lead-range':1300, 'neutral-range':100 };
+const names = ['mix-chart','icing-time-chart','steering-chart','force-chart','speed-chart','recovery-chart','neutral-chart','flick-angle-chart','flick-force-chart'];
+const values = { 'icing-range':80, 'initial-range':100, 'wetness-range':0, 'time-range':1650, 'contact-range':6, 'steer-size-range':20, 'speed-range':100, 'angle-range':30, 'lead-range':1300, 'neutral-range':100, 'flick-range':8300 };
 const elements = new Map();
 for (const name of names) elements.set(name,new Element('svg'));
 for (const [name,value] of Object.entries(values)) { const input=new Element('input'); input.value=value; elements.set(name,input); }
@@ -24,7 +25,7 @@ const document = {
   getElementById(id) { if (!elements.has(id)) elements.set(id,new Element('span')); return elements.get(id); },
   querySelectorAll() { return []; },
 };
-vm.runInNewContext(fs.readFileSync(path.join(__dirname,'app.js'),'utf8'), {document, globalThis:{GorillaGripModel:model}});
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'app.js'),'utf8'), {document, globalThis:{GorillaGripModel:model,PlasticFlickData:plasticFlick}});
 
 function escapeXml(value) { return String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 function serialize(node) {
@@ -40,6 +41,8 @@ const charts = [
   ['speed-chart','speed-force-target.svg','Recovered tire-force multiplier at full steering versus car speed and front-wheel angle to the travel direction'],
   ['recovery-chart','force-recovery.svg','Force multiplier recovery after landing with or without an early stored direction'],
   ['neutral-chart','neutral-steering-timeout.svg','Stored slide direction clears after 300 milliseconds of neutral internal steering'],
+  ['flick-angle-chart','plastic-flick-angles.svg','Travel direction and steered-wheel angle from the car nose over a measured plastic flick'],
+  ['flick-force-chart','plastic-flick-force.svg','Logged tire-force multiplier and predicted target over a measured plastic flick'],
 ];
 const folder=path.join(__dirname,'static');
 fs.mkdirSync(folder,{recursive:true});

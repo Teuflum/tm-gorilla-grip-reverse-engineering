@@ -52,4 +52,33 @@ The boost starts where `v × sin α` passes 36 km/h and is full at 108 km/h:
 - **The wheel angle to the travel direction matters as much as speed.** When the steered wheels point where the car is going, `x` is near zero and there is no boost, however fast the car is. When they point across the travel direction, the boost is full from 108 km/h.
 - **The report's 2.0 was a saturated value.** Every earlier sample had `x` above 30 m/s, which is why `1 + s^1.5` fitted them exactly. The graphs' `targetMultiplier` uses the same saturated form.
 
-Not measured here: a speed-only run on the ramp itself (`x` between 10 and 30 m/s) with the car's exact velocity, and what a smaller target costs in speed after a slow landing.
+Not measured here: what a smaller target costs in speed after a slow landing. The [plastic flick below](#plastic-sections) measures the 10–30 m/s part of the curve with the car's exact velocity.
+
+## Plastic sections
+
+Measured on 30 September 2026 on a map Teuflum had loaded (UID `9VT6qODgbTLrvPCtBCL0QregkMc`), Stadium car, same `Trackmania.exe` (SHA-256 `3FC7D8CD…6EDDA`). TICK replayed Teuflum's input: full left steering from 5.21 s to 8.91 s with gas held, and no brake between 6.94 s and 9.26 s. The [Gorilla Grip Logger](GorillaGripLogger/Main.as) recorded every display frame and the Gorilla Grip Trainer 0.3.0 logged every change of `vehicle+0x14dc` on the same replay. The run is deterministic: four earlier replays logged the same force values at the same race times.
+
+**What happens.** The slide crosses a plastic flick. The stored direction stays left and the backwards-motion state stays clear, yet the multiplier drops from 2.0 to 1.0 on a single frame at 8.28 s, stays there for about 150 ms and climbs back to 2.0 by 8.58 s. The climb (about +0.07 per tick, a little less each tick) is not the recovery ramp (+0.025 per touching front wheel per tick), and the mode is 3.2 s old, far past the 800 ms at which the ramp ends.
+
+**Why.** The target's `x` depends on the steered wheel angle, and that angle's surface factor is chosen by material: the ice-family curve while any wheel is on Ice, Snow or RoadIce, the other-material curve while all four are elsewhere. With `slip` the angle of the travel direction from the car's nose and `θ` the steered wheel angle, both measured to the same side, `x = v × |sin(slip − θ)|`.
+
+| Race ms | Wheels (FL/FR/RL/RR) | Average icing | Slip | Wheel angle `θ` | Predicted target | Logged |
+|---|---|---:|---:|---:|---:|---:|
+| 7502 | RoadIce ×4 | 100% | 104° | 45° | 2.00 | 2.000 |
+| 7734 | first wheels on Plastic | 100% | 101° | 45° | 2.00 | 2.000 |
+| 8096 | Plastic ×4 | 89% | 81° | 24.7° | 2.00 | 2.000 |
+| 8277 | Plastic ×4 | 84% | 55° | 18.1° | 2.00 | 2.000 |
+| **8282** | **FL on RoadIce** | 84% | 54.5° | **43.6°** | **1.03** | **1.013** |
+| 8300–8410 | RoadIce reaches all four | 83–89% | 52° → 36° | 44° | 1.00 | 1.000 |
+| 8445 | RoadIce ×4 | 91% | 31° | 44.2° | 1.13 | 1.129 |
+| 8514 | RoadIce ×4 | 95% | 22° | 44.6° | 1.60 | 1.605 |
+| 8585 | RoadIce ×4 | 99% | 12° | 44.9° | 2.00 | 2.000 |
+
+1. **On the plastic** (7.73–8.28 s) the plastic's grip swings the car round quickly: slip falls from 101° to 55°, where it had changed by only about 3° in the 0.2 s before on RoadIce. At the same time the tires lose icing, and the other-material curve (80% icing → 0.3) shrinks the wheel angle from 45° to 18°. The wheels stay more than 32° across the travel direction, so the target stays at 2.0. With the ice curve the wheels would have stayed near 44°, and the target would have started falling at about 8.15 s.
+2. **Back on RoadIce.** The front-left wheel's first RoadIce frame switches the surface factor to the ice curve, and the wheel angle jumps from 18° to 43.6° in one tick. At 54° of slip the wheels now point about 10° from the direction of travel, `x` falls to about 10 m/s, and the multiplier, being above the new target, is clamped straight down to it.
+3. **The dip.** Slip keeps falling and passes through the wheel angle: the wheels point exactly where the car is going. Until slip falls below about 33°, `x` stays under 10 m/s and the target stays at 1.0.
+4. **The climb.** As slip falls from 31° to 12°, `x` rises from about 12 to 31 m/s along the curve's ramp, and the target climbs from 1.13 to 2.0. That is the 10–30 m/s section of `model+0xFA0` measured with the car's own velocity.
+
+**Check.** Over the 502 frames from 5.83 to 8.75 s, the target with the material-selected surface factor matches the logged force within `0.033`. Using the ice curve on every frame misses by up to `0.931`. The remaining error comes from the Logger's display frames (about 6 ms apart) falling between the 10 ms physics ticks, and from the visible icing standing in for the per-wheel coefficient. [Graph 8](https://teuflum.github.io/tm-ice-physics-reverse-engineering/#plastic) plots both angles and all three force lines over the replay; `work/analyze_plastic_flick.py` recomputes the table from the Logger CSV and the Openplanet log.
+
+**What it means for play.** Crossing plastic mid-slide can hide the loss until the tires are back on ice: the plastic curve keeps the target high while the car rotates, and the first ice contact reveals where the wheels point. If the car leaves the plastic with its slip near the full-lock wheel angle (about 45°), the multiplier falls to 1.0 until the car turns further. This is geometry, not the timer: no direction change and no wait are involved. We tested only this full-lock replay. We did not measure how partial steering or a different exit angle changes the dip, or whether it costs time.

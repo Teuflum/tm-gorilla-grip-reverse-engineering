@@ -4,13 +4,13 @@ This repository reverse engineers how Trackmania's ice physics decide grip, star
 
 Follow-up measurements, on the same build:
 
-- [How speed limits the recovered tire force](outputs/speed_force_curve.md)
+- [How speed limits the recovered tire force](outputs/speed_force_curve.md), including [why the force dips after a plastic section](outputs/speed_force_curve.md#plastic-sections)
 - [What an early countersteer costs before a jump](outputs/countersteer_lead_cost.md)
 - [Early countersteer on short hops](outputs/countersteer_short_hops.md)
 
 ## Interactive graphs
 
-**[Open the interactive graphs](https://teuflum.github.io/tm-ice-physics-reverse-engineering/)** in your browser. GitHub shows `graphs/interactive.html` as source code, so the page is published with GitHub Pages instead; it updates on every change to `graphs/` on `main`. To use it offline, download or clone the repository and open [graphs/interactive.html](graphs/interactive.html). It needs no install or external scripts. Seven interactive graphs let you change the icing level, wetness, takeoff contact deadline, steering amount, speed and front-wheel angle, time before landing, and neutral-steering duration. The page keeps **tire icing**, **the weight of the icy tire-force contribution**, **stored direction**, and **the tire-force multiplier** visibly separate.
+**[Open the interactive graphs](https://teuflum.github.io/tm-ice-physics-reverse-engineering/)** in your browser. GitHub shows `graphs/interactive.html` as source code, so the page is published with GitHub Pages instead; it updates on every change to `graphs/` on `main`. To use it offline, download or clone the repository and open [graphs/interactive.html](graphs/interactive.html). It needs no install or external scripts. Eight interactive graphs let you change the icing level, wetness, takeoff contact deadline, steering amount, speed and front-wheel angle, time before landing, and neutral-steering duration, and step through a measured replay over a plastic flick. The page keeps **tire icing**, **the weight of the icy tire-force contribution**, **stored direction**, and **the tire-force multiplier** visibly separate.
 
 The SVG previews open directly on GitHub:
 
@@ -21,6 +21,8 @@ The SVG previews open directly on GitHub:
 - [Force target versus speed](graphs/static/speed-force-target.svg)
 - [Force recovery after a direction change](graphs/static/force-recovery.svg)
 - [300 ms neutral-steering timeout](graphs/static/neutral-steering-timeout.svg)
+- [Wheel angle and travel direction over a plastic flick](graphs/static/plastic-flick-angles.svg)
+- [Force dip after a plastic flick](graphs/static/plastic-flick-force.svg)
 
 ![Icing versus force weight on ice-family and other materials](graphs/static/icing-force-mix.svg)
 
@@ -43,6 +45,7 @@ The charts use the tested build's values and state their simplifying assumptions
 - `outputs/TICK_baseline_right.txt`: the baseline TICK input for the report's map. `outputs/TICK_right_12_from_1126_through_1131.txt` is its `+12` variant from the controlled pair, and `outputs/TICK_neutral_100ms_ice.txt` and `outputs/TICK_neutral_400ms_ice.txt` hold the extra steering actions for the neutral experiments.
 - `work/jump1_lead_trials.py`, `work/countersteer_lead_trials.py`, `work/short_hop_lead_trials.py` and their `work/analyze_*_lead.py` scripts: the early-countersteer experiments. `outputs/TICK_short_hops_baseline.txt` is the input replayed for the short hops.
 - `work/analyze_tarmac_capture.py`: prints force-multiplier and mode changes in the clean-tarmac capture.
+- `work/analyze_plastic_flick.py`: predicts the force target on every frame of a Logger CSV and compares it with the Trainer's logged force for the same replay; `--js` regenerates `graphs/plastic-flick-data.js`.
 - `work/inspect_model_curves.py` and `work/FlixInspect/`: read-only model-curve and GBX map/ghost inspection. The latter uses GBX.NET through .NET 10.
 - `work/scan_float_code_refs.py` and `work/ghidra_scripts/`: scripts used to locate and inspect the physics branch in a locally obtained game binary.
 
