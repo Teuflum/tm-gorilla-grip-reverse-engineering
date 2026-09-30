@@ -73,7 +73,7 @@
       </div>
       <div class="chart-wrap"><svg id="speed-chart" role="img" aria-label="Recovered tire-force multiplier at full steering versus car speed for different angles between the front wheels and the travel direction"></svg></div>
       <p class="takeaway" id="speed-summary" aria-live="polite"></p>
-      <p class="fine">The target is <code>1 + curve(x) × s^1.5</code>. x is the car's speed across the steered front wheels; the Stadium car's curve is 0 below 36 km/h of x and 1 from 108 km/h, linear between. At full steering the front wheels turn 45° from the car's nose, so a straight run and a 90° slide both put them 45° off the travel direction: no boost below about 51 km/h, full 2.0× from about 153 km/h. In a slide of about 45°, countersteering lines the wheels up with the travel direction (0°), so it gets almost nothing at any speed. With less steering, graph 4's boost is scaled by the same curve. The timer and stored direction do not depend on speed. <a href="../outputs/speed_force_curve.md">How speed limits the recovered tire force →</a></p>
+      <p class="fine">The target is <code>1 + curve(x) × s^1.5</code>. x is the car's speed across the steered front wheels; the Stadium car's curve is 0 below 36 km/h of x and 1 from 108 km/h, linear between. At full steering the front wheels turn 45° from the car's nose, so a straight run and a 90° slide both put them 45° off the travel direction: no boost below about 51 km/h, full 2.0× from about 153 km/h. In a slide of about 45°, countersteering lines the wheels up with the travel direction (0°), so it gets almost nothing at any speed. With less steering, graph 4's boost is scaled by the same curve. The timer and stored direction do not depend on speed. <a href="https://github.com/Teuflum/tm-ice-physics-reverse-engineering/blob/main/outputs/speed_force_curve.md">How speed limits the recovered tire force →</a></p>
     </section>
 
     <section class="card" id="recovery" aria-labelledby="recovery-title">
@@ -92,7 +92,7 @@
       <p class="fine">The graph shows <em>stored direction</em>, not the current force multiplier. Near-zero steering can lower the multiplier even before the stored mode clears. The 300 ms line is the timer threshold; the mode clears on the next eligible physics update at or after it. This simplified graph assumes continuous wheel contact and an active icy tire-force branch. In the air the neutral check does not run; at landing the timer may be checked if steering is still neutral.</p>
     </section>
 
-    <aside class="source"><strong>How to read these graphs:</strong> graph 1 is a force weight; graph 2 is the tire's icing state; graphs 3–7 are steering, stored direction, and a separate force multiplier with its speed limit. They are distinct values and should not be added together. <a href="../outputs/gorilla_grip_mechanism.md">Read the evidence and code trail in the full report →</a></aside>
+    <aside class="source"><strong>How to read these graphs:</strong> graph 1 is a force weight; graph 2 is the tire's icing state; graphs 3–7 are steering, stored direction, and a separate force multiplier with its speed limit. They are distinct values and should not be added together. <a href="https://github.com/Teuflum/tm-ice-physics-reverse-engineering/blob/main/outputs/gorilla_grip_mechanism.md">Read the evidence and code trail in the full report →</a></aside>
   </main>
   <footer class="wrap">Original interactive graphs for the tested Trackmania build. No network connection or dependencies are required.</footer>
 </body>

@@ -1,6 +1,6 @@
 # Gorilla grip: a player's guide
 
-How Trackmania's ice "gorilla grip" works, explained for players. The numbers come from the [research report](gorilla_grip_mechanism.md), which has the measurements and code evidence behind every claim here. They were measured on the September 2026 game build; a game update can change them.
+How Trackmania's ice "gorilla grip" works, explained for players. The numbers come from the [research report](gorilla_grip_mechanism.md), which has the measurements and code evidence behind every claim here. They were measured on the September 2026 game build; a game update can change them. The [interactive graphs](https://teuflum.github.io/tm-ice-physics-reverse-engineering/) let you try the numbers yourself.
 
 ## The short version
 
@@ -37,7 +37,7 @@ What you get on landing depends on how long ago you switched:
 
 In the controlled tests, switching before takeoff instead of at touchdown meant 3.6–5.6 km/h less speed lost shortly after landing on those jumps.
 
-**Countersteer as late as possible while the last wheel still touches.** Two things cost speed between the countersteer and takeoff. The tire-force multiplier sits at 1.0× for that whole time, and you are steering against the direction you are sliding, which all but stops the ice slide and slows the car a lot. If the jump is long enough (800 ms or more after the switch), countersteering on the last possible tick gives full tire force on landing with no loss before takeoff. The [Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) grades exactly that lead time: S+ means the direction switched on the takeoff tick itself, S one 10 ms tick before it.
+**Countersteer as late as possible while the last wheel still touches.** Two things cost speed between the countersteer and takeoff. The tire-force multiplier sits at 1.0× for that whole time, and you are steering against the direction you are sliding, which all but stops the ice slide and slows the car a lot ([measured cost](countersteer_lead_cost.md)). If the jump is long enough (800 ms or more after the switch), countersteering on the last possible tick gives full tire force on landing with no loss before takeoff. The [Gorilla Grip Trainer](https://github.com/Teuflum/Gorilla-Grip-Trainer) grades exactly that lead time: S+ means the direction switched on the takeoff tick itself, S one 10 ms tick before it.
 
 ## What lowers the tire-force multiplier
 
