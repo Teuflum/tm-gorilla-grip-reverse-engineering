@@ -6,6 +6,7 @@
   <title>Trackmania ice grip · interactive graphs</title>
   <link rel="stylesheet" href="style.css">
   <script defer src="model.js"></script>
+  <script defer src="plastic-flick-data.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -13,9 +14,9 @@
     <div class="wrap">
       <p class="eyebrow">Trackmania physics · tested build, 24 September 2026</p>
       <h1>What icy tires actually change</h1>
-      <p class="lead">Move the controls in seven graphs to see the different values. The first graph is the key one: <strong>icing percentage is the input; force weight is the output.</strong> Neither axis means car speed or total grip.</p>
+      <p class="lead">Move the controls in eight graphs to see the different values. The first graph is the key one: <strong>icing percentage is the input; force weight is the output.</strong> Neither axis means car speed or total grip.</p>
       <nav aria-label="Graph sections">
-        <a href="#mix">1 · Force mix</a><a href="#icing-time">2 · Icing over time</a><a href="#steering">3 · Takeoff steering</a><a href="#force-target">4 · Steering and force</a><a href="#speed">5 · Speed and force</a><a href="#recovery">6 · Recovery delay</a><a href="#neutral">7 · Neutral steering</a>
+        <a href="#mix">1 · Force mix</a><a href="#icing-time">2 · Icing over time</a><a href="#steering">3 · Takeoff steering</a><a href="#force-target">4 · Steering and force</a><a href="#speed">5 · Speed and force</a><a href="#recovery">6 · Recovery delay</a><a href="#neutral">7 · Neutral steering</a><a href="#plastic">8 · Plastic flick</a>
       </nav>
     </div>
   </header>
@@ -92,7 +93,16 @@
       <p class="fine">The graph shows <em>stored direction</em>, not the current force multiplier. Near-zero steering can lower the multiplier even before the stored mode clears. The 300 ms line is the timer threshold; the mode clears on the next eligible physics update at or after it. This simplified graph assumes continuous wheel contact and an active icy tire-force branch. In the air the neutral check does not run; at landing the timer may be checked if steering is still neutral.</p>
     </section>
 
-    <aside class="source"><strong>How to read these graphs:</strong> graph 1 is a force weight; graph 2 is the tire's icing state; graphs 3–7 are steering, stored direction, and a separate force multiplier with its speed limit. They are distinct values and should not be added together. <a href="https://github.com/Teuflum/tm-ice-physics-reverse-engineering/blob/main/outputs/gorilla_grip_mechanism.md">Read the evidence and code trail in the full report →</a></aside>
+    <section class="card" id="plastic" aria-labelledby="plastic-title">
+      <div class="section-heading"><span class="step">08</span><div><h2 id="plastic-title">Why the force dips after a plastic flick</h2><p>One measured replay over a plastic flick, with full left steering and gas held throughout. The stored direction never changes, yet the multiplier falls from 2.0× to 1.0× for about 150 ms. As in graph 5, the target depends on <strong>the angle between the steered wheels and the direction of travel</strong>, and plastic changes the wheel angle.</p></div></div>
+      <div class="control-row"><label for="flick-range">Race time: <output id="flick-value" for="flick-range">8.300 s</output></label><input id="flick-range" type="range" min="7500" max="8750" value="8300" step="5"></div>
+      <div class="chart-wrap"><svg id="flick-angle-chart" role="img" aria-label="Travel direction and steered-wheel angle from the car's nose over a plastic flick"></svg></div>
+      <div class="chart-wrap"><svg id="flick-force-chart" role="img" aria-label="Logged tire-force multiplier and predicted target over a plastic flick"></svg></div>
+      <p class="takeaway" id="flick-summary" aria-live="polite"></p>
+      <p class="fine">Measured on 30 September 2026 on the tested build: every other Gorilla Grip Logger frame, plus the Gorilla Grip Trainer's logged force from the same replay. Both angles are measured from the car's nose on the same side. The wheel angle is 45° × steering × the icing curve from <a href="#mix">graph 1</a>: the ice-family curve while any wheel touches Ice, Snow or RoadIce, and the plastic/other curve while all four are on plastic. On the plastic the tires lose icing and the plastic curve shrinks the wheel angle to about 18°, so the wheels stay far enough across the travel direction for 2.0× while the car swings round. When the front-left wheel reaches RoadIce at 8.28 s, the ice curve turns the wheels back to 43.6°, almost exactly where the car is going, and the target drops to 1.0×. It climbs back as the car keeps turning, with no timer involved. The material-selected prediction stays within 0.04 of the logged force; with the ice curve alone it misses by up to 0.9. <a href="https://github.com/Teuflum/tm-ice-physics-reverse-engineering/blob/main/outputs/speed_force_curve.md#plastic-sections">The measurement in detail →</a></p>
+    </section>
+
+    <aside class="source"><strong>How to read these graphs:</strong> graph 1 is a force weight; graph 2 is the tire's icing state; graphs 3–7 are steering, stored direction, and a separate force multiplier with its speed limit; graph 8 is one measured replay that combines them. They are distinct values and should not be added together. <a href="https://github.com/Teuflum/tm-ice-physics-reverse-engineering/blob/main/outputs/gorilla_grip_mechanism.md">Read the evidence and code trail in the full report →</a></aside>
   </main>
   <footer class="wrap">Original interactive graphs for the tested Trackmania build. No network connection or dependencies are required.</footer>
 </body>

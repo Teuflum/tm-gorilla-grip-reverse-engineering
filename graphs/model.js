@@ -73,6 +73,20 @@
     return 1 + speedCurve(sidewaysKmh) * Math.pow(clamp(Math.abs(steeringMagnitude)), 1.5);
   }
 
+  // Steered front-wheel angle from the car's nose: full lock (model+0xDA8,
+  // 45°) times steering times the same icing curve as graph 1, chosen by
+  // material (ice-family if any wheel is on Ice, Snow or RoadIce).
+  function wheelAngle(steeringMagnitude, icing, iceFamily) {
+    const factor = iceFamily ? iceWeight(icing) : otherWeight(icing);
+    return 45 * clamp(Math.abs(steeringMagnitude)) * factor;
+  }
+
+  // Target when the travel direction is slipDeg from the nose and the steered
+  // wheels point wheelAngleDeg from it, on the same side.
+  function slideTarget(speedKmh, slipDeg, wheelAngleDeg, steeringMagnitude) {
+    return targetMultiplier(steeringMagnitude, sidewaysSpeed(speedKmh, slipDeg - wheelAngleDeg));
+  }
+
   // A visual interpolation through approximate points from one delayed
   // full-steering landing. This is not the game's exact recovery equation.
   function recoverySketch(elapsedMs) {
@@ -90,7 +104,7 @@
   return {
     icePoints, otherPoints, iceWeight, otherWeight, ordinaryWeight,
     icingAt, steeringAfterUpdates, modeAtTakeoff, speedCurve, sidewaysSpeed,
-    targetMultiplier,
+    targetMultiplier, wheelAngle, slideTarget,
     recoverySketch, neutralModeAt,
   };
 });

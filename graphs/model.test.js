@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const model = require('./model.js');
+const flick = require('./plastic-flick-data.js');
 
 function close(actual, expected, tolerance = 1e-7) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} != ${expected}`);
@@ -63,6 +64,33 @@ test('speed across the front wheels scales the recovered target', () => {
   close(model.targetMultiplier(1, model.sidewaysSpeed(50.9, 45)), 1, 0.001);
   close(model.targetMultiplier(1, model.sidewaysSpeed(152.8, 45)), 2, 0.001);
   close(model.targetMultiplier(0.6, model.sidewaysSpeed(100, 45)), 1 + 0.4647580015 * (100 * Math.SQRT1_2 - 36) / 72);
+});
+
+test('surface factor turns the steered wheels less on plastic at the same icing', () => {
+  close(model.wheelAngle(1, 1, true), 45);
+  close(model.wheelAngle(1, 1, false), 45);
+  close(model.wheelAngle(1, 0.84, true), 43.65);
+  close(model.wheelAngle(1, 0.84, false), 45 * (0.3 + 0.04 / 0.15 * 0.4));
+  close(model.wheelAngle(0.5, 0.84, true), 21.825);
+  // Wheels pointing along the travel direction get no boost.
+  close(model.slideTarget(200, 43.65, 43.65, 1), 1);
+  close(model.slideTarget(200, 90, 45, 1), 2);
+});
+
+test('the plastic flick replay follows the material-selected surface factor', () => {
+  const predict = (row, byMaterial) => model.slideTarget(row.speedKmh, row.slipDeg,
+    model.wheelAngle(1, row.icing, byMaterial ? row.iceFamily : true), 1);
+  let byMaterial = 0, iceAlways = 0;
+  for (const row of flick) {
+    byMaterial = Math.max(byMaterial, Math.abs(predict(row, true) - row.force));
+    iceAlways = Math.max(iceAlways, Math.abs(predict(row, false) - row.force));
+  }
+  assert.ok(byMaterial < 0.04, `material-selected error ${byMaterial}`);
+  assert.ok(iceAlways > 0.8,`ice-curve error ${iceAlways}`);
+  // All four wheels on plastic until the front-left wheel reaches RoadIce at 8282 ms.
+  const plastic = flick.filter(row => !row.iceFamily).map(row => row.t);
+  assert.deepEqual([plastic[0], plastic.at(-1)], [7770, 8271]);
+  assert.equal(flick.find(row => row.t === 8282).force, 1.013);
 });
 
 test('illustrative recovery curve is anchored to measured landing landmarks', () => {
