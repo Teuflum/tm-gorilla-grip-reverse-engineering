@@ -14,9 +14,21 @@ any wheel is on Ice, Snow or RoadIce, otherwise the other-material curve
 uses the ice curve, and the largest error of each against the logged force.
 The curve points match graphs/model.js.
 
+Only frames where the target alone sets the force are scored: a wheel on the
+ground (the force does not update in the air), the backwards-motion gate clear,
+the stored direction at least 810 ms old (past the recovery timer), and the
+raw steering unchanged for 120 ms (so the smoothed steering has caught up).
+While the force sits at 1.0 after a switch the Trainer logs nothing, so a
+direction's start is taken from any snapshot that names it, later ones too.
+The Logger's surface readings trail the physics by about one tick, so frames
+in the 15 ms (a physics tick plus a display frame) before a surface-family
+change can already carry the new force; they are not scored either.
+
 Usage:
   py -3 analyze_plastic_flick.py --csv gorilla_grip_left.csv --csv-run 1
       --log-from 17:14:20 --log-to 17:19:16 --from 7500 --to 8750 [--step 5] [--js]
+  py -3 analyze_plastic_flick.py --csv gorilla_grip_right.csv --csv-run 0
+      --log-from 18:35:08 --log-to 18:35:57 --from 16500 --to 18550
 
 --js prints the sampled rows as the graphs' PlasticFlickData array instead.
 """
@@ -34,8 +46,11 @@ ICE_POINTS = [(0, 0), (0.05, 0.6), (0.2, 0.85), (1, 1)]      # model+0xCF0
 OTHER_POINTS = [(0, 0), (0.8, 0.3), (0.95, 0.7), (1, 1)]     # model+0xD40
 ICE_FAMILY = {3, 21, 74}                                      # Ice, Snow, RoadIce
 FULL_LOCK_DEG = 45.0                                          # model+0xDA8
+AIRBORNE = 80                                                 # XXX_Null: wheel not touching
+UNSET = 4294967295
 SNAPSHOT = re.compile(r"\[(\d\d:\d\d:\d\d)\.\d+\] \[GorillaGripTrainer\]  Gorilla Grip Trainer "
-                      r"snapshot at (-?\d+)ms: .*?, force ([0-9.]+),")
+                      r"snapshot at (-?\d+)ms: exact true, mode (\d), steer [-0-9.]+, contacts \d+, "
+                      r"modeAt (\d+), clock (\d+), delay \d+, force ([0-9.]+), gate (\d)")
 
 
 def curve(points: list[tuple[float, float]], x: float) -> float:
@@ -52,12 +67,15 @@ def target(sideways_ms: float, steer: float) -> float:
     return 1 + min(max((sideways_ms - 10) / 20, 0), 1) * abs(steer) ** 1.5
 
 
-def logged_forces(log: Path, start: str, end: str) -> list[tuple[int, float]]:
+def snapshots(log: Path, start: str, end: str) -> list[dict]:
+    """Trainer snapshots: race ms, force, gate, and the stored direction's start in race ms."""
     out = []
     for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
         m = SNAPSHOT.search(line)
         if m and start <= m[1] <= end:
-            out.append((int(m[2]), float(m[3])))
+            t, mode_at, clock = int(m[2]), int(m[4]), int(m[5])
+            out.append({"t": t, "force": float(m[6]), "gate": int(m[7]),
+                        "mode_start": None if mode_at == UNSET else mode_at - (clock - t)})
     return out
 
 
@@ -79,6 +97,7 @@ def frames(csv_path: Path, run: str, t0: float, t1: float):
             "slip": math.degrees(math.atan2(lateral, forward)),
             "icing": sum(float(r[k]) for k in ("fl_ice", "fr_ice", "rl_ice", "rr_ice")) / 4,
             "ice_family": any(m in ICE_FAMILY for m in materials),
+            "grounded": any(m != AIRBORNE for m in materials),
             "materials": materials,
             "steer": float(r["steer"]),
         }
@@ -106,18 +125,29 @@ def main() -> None:
     p.add_argument("--js", action="store_true")
     a = p.parse_args()
 
-    forces = logged_forces(a.log, a.log_from, a.log_to)
-    if not forces:
+    snaps = snapshots(a.log, a.log_from, a.log_to)
+    if not snaps:
         sys.exit("no Trainer force snapshots in that wall-time range")
+    starts = sorted({s["mode_start"] for s in snaps if s["mode_start"] is not None})
     rows = list(frames(a.csv, a.csv_run, a.t0, a.t1))
     worst = {True: 0.0, False: 0.0}
+    scored = 0
+    steer_since, last_steer = -math.inf, None
     printed = []
     for i, f in enumerate(rows):
-        before = [force for t, force in forces if t <= f["t"]]
-        f["force"] = before[-1] if before else None
+        tick = [g for g in rows[i + 1:i + 4] if g["t"] - f["t"] <= 15]
+        before = [s for s in snaps if s["t"] <= f["t"]]
+        started = [t for t in starts if t <= f["t"]]
+        if f["steer"] != last_steer:
+            steer_since, last_steer = f["t"], f["steer"]
+        f["force"] = before[-1]["force"] if before else None
         f["angle"], f["target"] = predict(f, True)
         f["target_ice"] = predict(f, False)[1]
-        if f["force"] is not None:
+        f["scored"] = (f["force"] is not None and f["grounded"] and before[-1]["gate"] == 0
+                       and bool(started) and f["t"] - started[-1] >= 810 and f["t"] - steer_since >= 120
+                       and all(g["ice_family"] == f["ice_family"] for g in tick))
+        if f["scored"]:
+            scored += 1
             worst[True] = max(worst[True], abs(f["target"] - f["force"]))
             worst[False] = max(worst[False], abs(f["target_ice"] - f["force"]))
         if i % a.step == 0:
@@ -132,8 +162,9 @@ def main() -> None:
     print(" race ms  materials     icing  slip°  wheel°  target  ice-curve  logged")
     for f in printed:
         print(f"{f['t']:8.0f}  {'/'.join(map(str, f['materials'])):12} {f['icing'] * 100:5.0f}%"
-              f" {f['slip']:6.1f}  {f['angle']:6.1f}  {f['target']:6.3f}  {f['target_ice']:9.3f}  {f['force']}")
-    print(f"{len(rows)} frames. Largest |prediction - logged force|: surface factor by material "
+              f" {f['slip']:6.1f}  {f['angle']:6.1f}  {f['target']:6.3f}  {f['target_ice']:9.3f}  {f['force']}"
+              f"{'' if f['scored'] else '  (not scored)'}")
+    print(f"{scored} of {len(rows)} frames scored. Largest |prediction - logged force|: surface factor by material "
           f"{worst[True]:.3f}, ice curve always {worst[False]:.3f}")
 
 
